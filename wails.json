@@ -4,7 +4,7 @@
   "outputfilename": "tinyEditor",
   "info": {
     "companyName": "tinyEditor",
-    "productName": "文本编辑器",
+    "productName": "TextMind",
     "productVersion": "1.0.0",
     "copyright": "Copyright © 2026",
     "comments": "Built with Wails"
@@ -15,4 +15,3 @@
   "frontend:dev:serverUrl": "auto",
   "assetdir": "frontend/dist"
 }
-

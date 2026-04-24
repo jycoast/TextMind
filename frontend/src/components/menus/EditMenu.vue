@@ -10,6 +10,9 @@ const emit = defineEmits<{
   (e: "inlist"): void;
   (e: "template-sql"): void;
   (e: "toggle-column"): void;
+  (e: "format-json"): void;
+  (e: "minify-json"): void;
+  (e: "detect-language"): void;
 }>();
 
 const menus = useMenusStore();
@@ -26,7 +29,15 @@ function triggerClick() {
   menus.toggleTopMenu("edit");
 }
 
-type Action = "dedupe" | "singleton" | "inlist" | "template-sql" | "toggle-column";
+type Action =
+  | "dedupe"
+  | "singleton"
+  | "inlist"
+  | "template-sql"
+  | "toggle-column"
+  | "format-json"
+  | "minify-json"
+  | "detect-language";
 function click(action: Action) {
   switch (action) {
     case "dedupe":
@@ -43,6 +54,15 @@ function click(action: Action) {
       break;
     case "toggle-column":
       emit("toggle-column");
+      break;
+    case "format-json":
+      emit("format-json");
+      break;
+    case "minify-json":
+      emit("minify-json");
+      break;
+    case "detect-language":
+      emit("detect-language");
       break;
   }
   menus.closeAllTopMenus();
@@ -95,6 +115,27 @@ function click(action: Action) {
         @click="click('template-sql')"
       >
         模板批量生成
+      </button>
+      <button
+        class="tm-menu-item"
+        role="menuitem"
+        @click="click('format-json')"
+      >
+        格式化 JSON
+      </button>
+      <button
+        class="tm-menu-item"
+        role="menuitem"
+        @click="click('minify-json')"
+      >
+        压缩 JSON
+      </button>
+      <button
+        class="tm-menu-item"
+        role="menuitem"
+        @click="click('detect-language')"
+      >
+        自动识别语言
       </button>
     </div>
   </div>

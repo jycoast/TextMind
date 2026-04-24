@@ -28,7 +28,7 @@ func main() {
 
 	app := NewApp(logger, launchPath)
 	err = wails.Run(&options.App{
-		Title:     "文本编辑器",
+		Title:     "TextMind",
 		Width:     1000,
 		Height:    760,
 		MinWidth:  820,

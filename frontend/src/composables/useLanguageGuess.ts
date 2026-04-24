@@ -1,3 +1,5 @@
+import { detectLanguageFromContent } from "./useLanguageDetect";
+
 const extensionMap: Record<string, string> = {
   js: "javascript",
   mjs: "javascript",
@@ -42,4 +44,13 @@ export function guessLanguageByFilename(name: string | undefined): string {
   const m = filename.match(/\.([a-z0-9]+)$/);
   const ext = m ? m[1] : "";
   return extensionMap[ext] || "plaintext";
+}
+
+export function guessLanguage(
+  name: string | undefined,
+  content: string,
+): string {
+  const byName = guessLanguageByFilename(name);
+  if (byName !== "plaintext") return byName;
+  return detectLanguageFromContent(content) || "plaintext";
 }

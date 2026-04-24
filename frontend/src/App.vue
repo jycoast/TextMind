@@ -23,6 +23,7 @@ import {
   loadSessionIntoStores,
 } from "@/composables/useSession";
 import { useKeyboardShortcuts } from "@/composables/useKeyboardShortcuts";
+import { tryFormatJson, tryMinifyJson } from "@/composables/useJsonFormat";
 
 const tabs = useTabsStore();
 const menus = useMenusStore();
@@ -151,6 +152,55 @@ function onToggleColumn() {
   }
 }
 
+function runJsonOp(variant: "format" | "minify") {
+  menus.closeEverything();
+  const sel = tabs.getSelectionText();
+  const useSelection = sel.trim().length > 0;
+  const source = useSelection ? sel : tabs.adapter?.getValue() ?? "";
+  if (!source.trim()) {
+    ui.showTip("没有可处理的文本");
+    return;
+  }
+  const res =
+    variant === "format" ? tryFormatJson(source, 2) : tryMinifyJson(source);
+  if (!res.ok) {
+    ui.showTip(`JSON 解析失败：${res.error}`);
+    return;
+  }
+  if (useSelection) {
+    tabs.replaceSelection(res.text);
+  } else if (tabs.adapter) {
+    tabs.adapter.setValue(res.text);
+  }
+  ui.showTip(variant === "format" ? "已格式化 JSON" : "已压缩 JSON");
+}
+
+function onFormatJson() {
+  runJsonOp("format");
+}
+
+function onMinifyJson() {
+  runJsonOp("minify");
+}
+
+function onEditorMenuAction(
+  action: "dedupe" | "singleton" | "inlist" | "format-json" | "minify-json",
+) {
+  if (action === "format-json") return onFormatJson();
+  if (action === "minify-json") return onMinifyJson();
+  return onContextAction(action);
+}
+
+function onDetectLanguage() {
+  menus.closeEverything();
+  const res = tabs.detectAndApplyCurrentLanguage();
+  if (!res.ok) {
+    ui.showTip("未能识别出语言");
+    return;
+  }
+  ui.showTip(`已切换语言：${res.language}`);
+}
+
 function onTemplateInsert(text: string) {
   const ok = tabs.replaceSelection(text);
   if (!ok) {
@@ -217,6 +267,9 @@ onMounted(async () => {
     @inlist="onContextAction('inlist')"
     @template-sql="showTemplate"
     @toggle-column="onToggleColumn"
+    @format-json="onFormatJson"
+    @minify-json="onMinifyJson"
+    @detect-language="onDetectLanguage"
   />
   <div class="workbench flex flex-1 min-h-0 overflow-hidden" @click="onAppClick">
     <FileExplorer @open-file="(p) => onOpenFileByPath(p)" />
@@ -227,7 +280,7 @@ onMounted(async () => {
     </div>
   </div>
   <BottomBar />
-  <ContextMenu @action="onContextAction" />
+  <ContextMenu @action="onEditorMenuAction" />
   <TabContextMenu />
   <TemplateModal
     :visible="templateVisible"

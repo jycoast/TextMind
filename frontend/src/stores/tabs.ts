@@ -2,7 +2,11 @@ import { defineStore } from "pinia";
 import { computed, ref, shallowRef } from "vue";
 import type { EditorAdapter, MonacoViewState, Tab } from "@/types";
 import { backend } from "@/api/backend";
-import { guessLanguageByFilename } from "@/composables/useLanguageGuess";
+import {
+  guessLanguage,
+  guessLanguageByFilename,
+} from "@/composables/useLanguageGuess";
+import { detectLanguageFromContent } from "@/composables/useLanguageDetect";
 import {
   normalizeLanguage,
   normalizePathKey,
@@ -226,7 +230,7 @@ export const useTabsStore = defineStore("tabs", () => {
           persistCurrentViewState();
           tab.title = res.name || tab.title;
           tab.text = res.text || "";
-          tab.language = guessLanguageByFilename(res.name || res.path);
+          tab.language = guessLanguage(res.name || res.path, res.text || "");
           tab.path = res.path || tab.path;
           tab.viewState = null;
           tab.dirty = false;
@@ -239,7 +243,7 @@ export const useTabsStore = defineStore("tabs", () => {
       return { opened: false, existed: true, reloaded: false };
     }
 
-    const lang = guessLanguageByFilename(res.name || res.path);
+    const lang = guessLanguage(res.name || res.path, res.text || "");
     const first = tabs.value[0];
     const hasSingleBlankTab =
       tabs.value.length === 1 &&
@@ -297,7 +301,7 @@ export const useTabsStore = defineStore("tabs", () => {
     if (!res.path) return { ok: false };
     tab.path = res.path;
     if (res.name) tab.title = res.name;
-    tab.language = guessLanguageByFilename(res.name || res.path);
+    tab.language = guessLanguage(res.name || res.path, tab.text || "");
     tab.dirty = false;
     renderCurrentIntoEditor();
 
@@ -352,6 +356,20 @@ export const useTabsStore = defineStore("tabs", () => {
     }
   }
 
+  function detectAndApplyCurrentLanguage(): {
+    ok: boolean;
+    language: string;
+  } {
+    const tab = current.value;
+    if (!tab || !adapter.value) return { ok: false, language: "" };
+    const text = adapter.value.getValue();
+    const lang = detectLanguageFromContent(text);
+    if (!lang) return { ok: false, language: "" };
+    tab.language = normalizeLanguage(lang);
+    adapter.value.setLanguage(tab.language);
+    return { ok: true, language: tab.language };
+  }
+
   return {
     tabs,
     selectedIndex,
@@ -381,5 +399,6 @@ export const useTabsStore = defineStore("tabs", () => {
     saveCurrent,
     restoreFromSession,
     markDirty,
+    detectAndApplyCurrentLanguage,
   };
 });

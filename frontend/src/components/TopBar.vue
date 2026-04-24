@@ -13,6 +13,9 @@ defineEmits<{
   (e: "inlist"): void;
   (e: "template-sql"): void;
   (e: "toggle-column"): void;
+  (e: "format-json"): void;
+  (e: "minify-json"): void;
+  (e: "detect-language"): void;
 }>();
 </script>
 
@@ -34,6 +37,9 @@ defineEmits<{
         @inlist="$emit('inlist')"
         @template-sql="$emit('template-sql')"
         @toggle-column="$emit('toggle-column')"
+        @format-json="$emit('format-json')"
+        @minify-json="$emit('minify-json')"
+        @detect-language="$emit('detect-language')"
       />
       <SettingsMenu />
     </div>

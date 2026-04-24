@@ -3,7 +3,6 @@ import { storeToRefs } from "pinia";
 import { useTabsStore } from "@/stores/tabs";
 import { useMenusStore } from "@/stores/menus";
 import TabItem from "./TabItem.vue";
-import StatusTip from "./StatusTip.vue";
 
 const tabs = useTabsStore();
 const menus = useMenusStore();
@@ -51,6 +50,5 @@ function onNew() {
     >
       +
     </button>
-    <StatusTip />
   </div>
 </template>
