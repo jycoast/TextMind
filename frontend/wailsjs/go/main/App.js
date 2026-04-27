@@ -10,6 +10,10 @@ export function DedupeSelected(arg1) {
   return window['go']['main']['App']['DedupeSelected'](arg1);
 }
 
+export function ExtractFromText(arg1, arg2) {
+  return window['go']['main']['App']['ExtractFromText'](arg1, arg2);
+}
+
 export function KeepSingletonSelected(arg1) {
   return window['go']['main']['App']['KeepSingletonSelected'](arg1);
 }

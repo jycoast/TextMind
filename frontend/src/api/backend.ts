@@ -1,5 +1,5 @@
 import * as App from "@wails/go/main/App";
-import type { main, persist } from "@wails/go/models";
+import type { extract, main, persist } from "@wails/go/models";
 
 export const backend = {
   loadSession: (): Promise<main.SessionPayload> => App.LoadSession(),
@@ -18,6 +18,11 @@ export const backend = {
     App.KeepSingletonSelected(text),
   toInListSelected: (text: string): Promise<main.ToolResult> =>
     App.ToInListSelected(text),
+
+  extractFromText: (
+    text: string,
+    opts: extract.Options,
+  ): Promise<main.ExtractResult> => App.ExtractFromText(text, opts),
 
   openTextFile: (): Promise<main.OpenFileResult> => App.OpenTextFile(),
   openTextFileByPath: (path: string): Promise<main.OpenFileResult> =>

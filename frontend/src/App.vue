@@ -10,6 +10,7 @@ import BottomBar from "@/components/BottomBar.vue";
 import ContextMenu from "@/components/ContextMenu.vue";
 import TabContextMenu from "@/components/TabContextMenu.vue";
 import TemplateModal from "@/components/TemplateModal.vue";
+import ExtractModal from "@/components/ExtractModal.vue";
 import { useTabsStore } from "@/stores/tabs";
 import { useMenusStore } from "@/stores/menus";
 import { useRecentStore } from "@/stores/recent";
@@ -35,6 +36,9 @@ const { tabs: tabList } = storeToRefs(tabs);
 const templateVisible = ref(false);
 const templateInitialData = ref("");
 
+const extractVisible = ref(false);
+const extractSource = ref("");
+
 function showTemplate() {
   menus.closeEverything();
   const sel = tabs.getSelectionText();
@@ -44,6 +48,39 @@ function showTemplate() {
 
 function hideTemplate() {
   templateVisible.value = false;
+}
+
+function showExtract() {
+  menus.closeEverything();
+  const sel = tabs.getSelectionText();
+  extractSource.value = sel.trim()
+    ? sel
+    : (tabs.adapter?.getValue() ?? "");
+  if (!extractSource.value.trim()) {
+    ui.showTip("没有可提取的文本");
+    return;
+  }
+  extractVisible.value = true;
+}
+
+function hideExtract() {
+  extractVisible.value = false;
+}
+
+function onExtractInsert(text: string) {
+  const ok = tabs.replaceSelection(text);
+  if (!ok) {
+    ui.showTip('当前没有选区可替换，请改用"新建Tab输出"');
+    return;
+  }
+  hideExtract();
+  ui.showTip("提取完成");
+}
+
+function onExtractNewTab(text: string) {
+  tabs.addTabFromText("提取结果", text, "plaintext");
+  hideExtract();
+  ui.showTip("提取完成");
 }
 
 async function onOpenFile() {
@@ -184,8 +221,15 @@ function onMinifyJson() {
 }
 
 function onEditorMenuAction(
-  action: "dedupe" | "singleton" | "inlist" | "format-json" | "minify-json",
+  action:
+    | "extract"
+    | "dedupe"
+    | "singleton"
+    | "inlist"
+    | "format-json"
+    | "minify-json",
 ) {
+  if (action === "extract") return showExtract();
   if (action === "format-json") return onFormatJson();
   if (action === "minify-json") return onMinifyJson();
   return onContextAction(action);
@@ -231,6 +275,10 @@ useKeyboardShortcuts({
   onOpenTemplate: showTemplate,
   onToggleColumnMode: onToggleColumn,
   onEscape: () => {
+    if (extractVisible.value) {
+      hideExtract();
+      return;
+    }
     if (templateVisible.value) {
       hideTemplate();
       return;
@@ -262,6 +310,7 @@ onMounted(async () => {
     @open-file="onOpenFile"
     @open-folder="onOpenFolder"
     @open-recent="(p: string) => onOpenFileByPath(p)"
+    @extract="showExtract"
     @dedupe="onContextAction('dedupe')"
     @singleton="onContextAction('singleton')"
     @inlist="onContextAction('inlist')"
@@ -288,6 +337,13 @@ onMounted(async () => {
     @close="hideTemplate"
     @insert="onTemplateInsert"
     @new-tab="onTemplateNewTab"
+  />
+  <ExtractModal
+    :visible="extractVisible"
+    :source="extractSource"
+    @close="hideExtract"
+    @insert="onExtractInsert"
+    @new-tab="onExtractNewTab"
   />
   <div class="sr-only">{{ tabList.length }}</div>
 </template>

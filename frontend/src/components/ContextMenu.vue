@@ -3,6 +3,7 @@ import { storeToRefs } from "pinia";
 import { useMenusStore } from "@/stores/menus";
 
 export type EditorContextAction =
+  | "extract"
   | "dedupe"
   | "singleton"
   | "inlist"
@@ -32,6 +33,7 @@ function handle(action: EditorContextAction) {
     }"
     @click.stop
   >
+    <button @click="handle('extract')">提取...</button>
     <button @click="handle('dedupe')">去重</button>
     <button @click="handle('singleton')">保留单次出现项</button>
     <button @click="handle('inlist')">转IN列表</button>

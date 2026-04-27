@@ -5,6 +5,7 @@ import { useMenusStore } from "@/stores/menus";
 import { useTabsStore } from "@/stores/tabs";
 
 const emit = defineEmits<{
+  (e: "extract"): void;
   (e: "dedupe"): void;
   (e: "singleton"): void;
   (e: "inlist"): void;
@@ -30,6 +31,7 @@ function triggerClick() {
 }
 
 type Action =
+  | "extract"
   | "dedupe"
   | "singleton"
   | "inlist"
@@ -40,6 +42,9 @@ type Action =
   | "detect-language";
 function click(action: Action) {
   switch (action) {
+    case "extract":
+      emit("extract");
+      break;
     case "dedupe":
       emit("dedupe");
       break;
@@ -99,6 +104,9 @@ function click(action: Action) {
         @click="click('toggle-column')"
       >
         {{ columnLabel }}
+      </button>
+      <button class="tm-menu-item" role="menuitem" @click="click('extract')">
+        提取...
       </button>
       <button class="tm-menu-item" role="menuitem" @click="click('dedupe')">
         去重

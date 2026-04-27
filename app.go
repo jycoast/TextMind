@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"tinyEditor/dedupe"
+	"tinyEditor/extract"
 	"tinyEditor/inlist"
 	"tinyEditor/persist"
 
@@ -35,6 +36,13 @@ type ToolResult struct {
 	Text    string `json:"text"`
 	Removed int    `json:"removed"`
 	Count   int    `json:"count"`
+}
+
+type ExtractResult struct {
+	Text       string `json:"text"`
+	MatchCount int    `json:"matchCount"`
+	LineCount  int    `json:"lineCount"`
+	Error      string `json:"error"`
 }
 
 type OpenFileResult struct {
@@ -153,6 +161,19 @@ func (a *App) ToInListSelected(selected string) ToolResult {
 	}
 	result, count := inlist.QuotedCommaLines(selected)
 	return ToolResult{Text: result, Count: count}
+}
+
+func (a *App) ExtractFromText(text string, opts extract.Options) ExtractResult {
+	if strings.TrimSpace(text) == "" {
+		return ExtractResult{Error: "没有可提取的文本"}
+	}
+	res := extract.Run(text, opts)
+	return ExtractResult{
+		Text:       res.Text,
+		MatchCount: res.MatchCount,
+		LineCount:  res.LineCount,
+		Error:      res.Error,
+	}
 }
 
 func (a *App) Notify(title, message string) {
