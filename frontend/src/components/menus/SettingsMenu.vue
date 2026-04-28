@@ -4,6 +4,11 @@ import { useMenusStore } from "@/stores/menus";
 import { useThemeStore } from "@/stores/theme";
 import ThemeSubmenu from "./ThemeSubmenu.vue";
 
+const emit = defineEmits<{
+  (e: "open-ai-settings"): void;
+  (e: "check-for-updates"): void;
+}>();
+
 const menus = useMenusStore();
 const themeStore = useThemeStore();
 const { isSettingsMenuOpen, isThemeSubmenuOpen } = storeToRefs(menus);
@@ -11,6 +16,16 @@ const { theme } = storeToRefs(themeStore);
 
 function triggerClick() {
   menus.toggleTopMenu("settings");
+}
+
+function openAISettings() {
+  menus.closeAllTopMenus();
+  emit("open-ai-settings");
+}
+
+function openCheckForUpdates() {
+  menus.closeAllTopMenus();
+  emit("check-for-updates");
 }
 
 function onHoverTheme() {
@@ -66,6 +81,20 @@ function pickTheme(next: "dark" | "light") {
           @pick="pickTheme"
         />
       </div>
+      <button
+        class="tm-menu-item"
+        role="menuitem"
+        @click.stop="openAISettings"
+      >
+        AI 设置...
+      </button>
+      <button
+        class="tm-menu-item"
+        role="menuitem"
+        @click.stop="openCheckForUpdates"
+      >
+        检查更新...
+      </button>
     </div>
   </div>
 </template>

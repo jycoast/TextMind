@@ -11,11 +11,21 @@ import ContextMenu from "@/components/ContextMenu.vue";
 import TabContextMenu from "@/components/TabContextMenu.vue";
 import TemplateModal from "@/components/TemplateModal.vue";
 import ExtractModal from "@/components/ExtractModal.vue";
+import AIChatPanel from "@/components/AIChatPanel.vue";
+import AIPanelSplitter from "@/components/AIPanelSplitter.vue";
+import AISettingsModal from "@/components/AISettingsModal.vue";
+import AIInlineModal from "@/components/AIInlineModal.vue";
+import UpdateModal from "@/components/UpdateModal.vue";
 import { useTabsStore } from "@/stores/tabs";
 import { useMenusStore } from "@/stores/menus";
 import { useRecentStore } from "@/stores/recent";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { useUiStore } from "@/stores/ui";
+import { useAIPanelStore } from "@/stores/aiPanel";
+import { useAIConfigStore } from "@/stores/aiConfig";
+import { useAIChatStore } from "@/stores/aiChat";
+import { useUpdateStore } from "@/stores/update";
+import { useAIChat } from "@/composables/useAIChat";
 import { backend } from "@/api/backend";
 import { guessLanguageByFilename } from "@/composables/useLanguageGuess";
 import { pathBaseName } from "@/utils/normalize";
@@ -31,6 +41,11 @@ const menus = useMenusStore();
 const recents = useRecentStore();
 const workspace = useWorkspaceStore();
 const ui = useUiStore();
+const aiPanel = useAIPanelStore();
+const aiConfig = useAIConfigStore();
+const aiChat = useAIChatStore();
+const updateStore = useUpdateStore();
+const aiApi = useAIChat();
 const { tabs: tabList } = storeToRefs(tabs);
 
 const templateVisible = ref(false);
@@ -38,6 +53,18 @@ const templateInitialData = ref("");
 
 const extractVisible = ref(false);
 const extractSource = ref("");
+
+const aiSettingsVisible = ref(false);
+const aiInlineVisible = ref(false);
+const aiInlineSource = ref("");
+
+const updateModalVisible = ref(false);
+
+// 24h between auto-checks; explicit user clicks always force a fresh check.
+const AUTO_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+// Wait a few seconds after launch before going to the network so the
+// editor finishes loading first. Network failures are silent.
+const AUTO_CHECK_DELAY_MS = 8000;
 
 function showTemplate() {
   menus.closeEverything();
@@ -81,6 +108,113 @@ function onExtractNewTab(text: string) {
   tabs.addTabFromText("提取结果", text, "plaintext");
   hideExtract();
   ui.showTip("提取完成");
+}
+
+function showAISettings() {
+  menus.closeEverything();
+  aiSettingsVisible.value = true;
+}
+
+function hideAISettings() {
+  aiSettingsVisible.value = false;
+}
+
+function showUpdateModal() {
+  menus.closeEverything();
+  updateModalVisible.value = true;
+}
+
+function hideUpdateModal() {
+  updateModalVisible.value = false;
+}
+
+async function maybeAutoCheckUpdate() {
+  // Throttle: skip if we already checked within the last 24h.
+  const last = Number(updateStore.lastCheckMs) || 0;
+  if (last && Date.now() - last < AUTO_CHECK_INTERVAL_MS) return;
+  // Silent mode: any failure is swallowed; only pop the modal if a real
+  // update is found, so users with no internet aren't nagged.
+  const res = await updateStore.check(true);
+  if (res?.hasUpdate) {
+    updateModalVisible.value = true;
+  }
+}
+
+function toggleAIPanel() {
+  aiPanel.toggleVisible();
+  if (aiPanel.visible) {
+    if (!aiConfig.loaded) {
+      aiConfig.load().catch(() => {});
+    }
+    aiChat.loadList().catch(() => {});
+  }
+  setTimeout(() => tabs.adapter?.forceRefresh(), 0);
+}
+
+function showAIInline() {
+  menus.closeEverything();
+  const sel = tabs.getSelectionText();
+  aiInlineSource.value = sel.trim() ? sel : (tabs.adapter?.getValue() ?? "");
+  if (!aiInlineSource.value.trim()) {
+    ui.showTip("没有可处理的文本");
+    return;
+  }
+  aiInlineVisible.value = true;
+}
+
+function hideAIInline() {
+  aiInlineVisible.value = false;
+}
+
+function onAIInlineReplace(text: string) {
+  const ok = tabs.replaceSelection(text);
+  if (!ok) {
+    ui.showTip('当前没有选区可替换，请改用"插入到光标"或"送入面板"');
+    return;
+  }
+  hideAIInline();
+  ui.showTip("已替换选区");
+}
+
+function onAIInlineInsert(text: string) {
+  const ok = tabs.replaceSelection(text);
+  if (!ok) {
+    tabs.addTabFromText("AI 输出", text, "plaintext");
+    ui.showTip("无插入位置，已新建Tab");
+  } else {
+    ui.showTip("已插入到光标");
+  }
+  hideAIInline();
+}
+
+async function onAIInlineSendToPanel(
+  userMessage: string,
+  assistantMessage: string,
+) {
+  hideAIInline();
+  aiPanel.setVisible(true);
+  if (!aiConfig.loaded) await aiConfig.load();
+  await aiChat.loadList();
+  const conv = await aiChat.createConversation(
+    "选区对话",
+    aiConfig.config.defaultModel,
+  );
+  if (!conv) {
+    ui.showTip("创建会话失败");
+    return;
+  }
+  // Replay the inline exchange in the new conversation. We use sendInConversation
+  // so the assistant continuation remains streaming-capable, but for now we
+  // simply seed the conversation by issuing the same user message and ignore
+  // the assistantMessage we already produced (the API gives a fresh answer).
+  void assistantMessage;
+  const result = await aiApi.sendInConversation({
+    conversationId: conv.id,
+    userMessage,
+  });
+  if ("error" in result) {
+    ui.showTip(result.error);
+  }
 }
 
 async function onOpenFile() {
@@ -227,11 +361,13 @@ function onEditorMenuAction(
     | "singleton"
     | "inlist"
     | "format-json"
-    | "minify-json",
+    | "minify-json"
+    | "ai-inline",
 ) {
   if (action === "extract") return showExtract();
   if (action === "format-json") return onFormatJson();
   if (action === "minify-json") return onMinifyJson();
+  if (action === "ai-inline") return showAIInline();
   return onContextAction(action);
 }
 
@@ -274,7 +410,20 @@ useKeyboardShortcuts({
   onSave: () => void onSaveCurrent(),
   onOpenTemplate: showTemplate,
   onToggleColumnMode: onToggleColumn,
+  onToggleAIPanel: toggleAIPanel,
   onEscape: () => {
+    if (updateModalVisible.value) {
+      hideUpdateModal();
+      return;
+    }
+    if (aiInlineVisible.value) {
+      hideAIInline();
+      return;
+    }
+    if (aiSettingsVisible.value) {
+      hideAISettings();
+      return;
+    }
     if (extractVisible.value) {
       hideExtract();
       return;
@@ -300,6 +449,11 @@ onMounted(async () => {
   }
   await openLaunchFileIfAny();
   installSessionAutoSave();
+
+  // Background update check after the editor settles. Errors are silent.
+  setTimeout(() => {
+    maybeAutoCheckUpdate().catch(() => {});
+  }, AUTO_CHECK_DELAY_MS);
 });
 </script>
 
@@ -319,6 +473,10 @@ onMounted(async () => {
     @format-json="onFormatJson"
     @minify-json="onMinifyJson"
     @detect-language="onDetectLanguage"
+    @ai-inline="showAIInline"
+    @open-ai-settings="showAISettings"
+    @toggle-ai-panel="toggleAIPanel"
+    @check-for-updates="showUpdateModal"
   />
   <div class="workbench flex flex-1 min-h-0 overflow-hidden" @click="onAppClick">
     <FileExplorer @open-file="(p) => onOpenFileByPath(p)" />
@@ -327,6 +485,8 @@ onMounted(async () => {
       <TabBar />
       <EditorHost />
     </div>
+    <AIPanelSplitter v-if="aiPanel.visible" />
+    <AIChatPanel v-if="aiPanel.visible" @open-settings="showAISettings" />
   </div>
   <BottomBar />
   <ContextMenu @action="onEditorMenuAction" />
@@ -345,5 +505,15 @@ onMounted(async () => {
     @insert="onExtractInsert"
     @new-tab="onExtractNewTab"
   />
+  <AISettingsModal :visible="aiSettingsVisible" @close="hideAISettings" />
+  <AIInlineModal
+    :visible="aiInlineVisible"
+    :source="aiInlineSource"
+    @close="hideAIInline"
+    @replace="onAIInlineReplace"
+    @insert="onAIInlineInsert"
+    @send-to-panel="onAIInlineSendToPanel"
+  />
+  <UpdateModal :visible="updateModalVisible" @close="hideUpdateModal" />
   <div class="sr-only">{{ tabList.length }}</div>
 </template>

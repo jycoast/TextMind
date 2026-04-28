@@ -35,6 +35,151 @@ export namespace extract {
 
 export namespace main {
 	
+	export class AIConfigDTO {
+	    baseUrl: string;
+	    apiKey: string;
+	    defaultModel: string;
+	    models: string[];
+	    systemPrompt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AIConfigDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.baseUrl = source["baseUrl"];
+	        this.apiKey = source["apiKey"];
+	        this.defaultModel = source["defaultModel"];
+	        this.models = source["models"];
+	        this.systemPrompt = source["systemPrompt"];
+	    }
+	}
+	export class AIModelDTO {
+	    id: string;
+	    ownedBy?: string;
+	    created?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new AIModelDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.ownedBy = source["ownedBy"];
+	        this.created = source["created"];
+	    }
+	}
+	export class ChatMessageDTO {
+	    role: string;
+	    content: string;
+	    createdAt?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChatMessageDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.role = source["role"];
+	        this.content = source["content"];
+	        this.createdAt = source["createdAt"];
+	    }
+	}
+	export class ConversationDTO {
+	    id: string;
+	    title: string;
+	    model?: string;
+	    createdAt: number;
+	    updatedAt: number;
+	    messages: ChatMessageDTO[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ConversationDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.title = source["title"];
+	        this.model = source["model"];
+	        this.createdAt = source["createdAt"];
+	        this.updatedAt = source["updatedAt"];
+	        this.messages = this.convertValues(source["messages"], ChatMessageDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ConversationMetaDTO {
+	    id: string;
+	    title: string;
+	    model?: string;
+	    createdAt: number;
+	    updatedAt: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConversationMetaDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.title = source["title"];
+	        this.model = source["model"];
+	        this.createdAt = source["createdAt"];
+	        this.updatedAt = source["updatedAt"];
+	    }
+	}
+	export class ConversationListDTO {
+	    conversations: ConversationMetaDTO[];
+	    selectedId: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConversationListDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.conversations = this.convertValues(source["conversations"], ConversationMetaDTO);
+	        this.selectedId = source["selectedId"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class ExtractResult {
 	    text: string;
 	    matchCount: number;
@@ -53,6 +198,40 @@ export namespace main {
 	        this.error = source["error"];
 	    }
 	}
+	export class FetchModelsResult {
+	    ok: boolean;
+	    error?: string;
+	    models: AIModelDTO[];
+	
+	    static createFrom(source: any = {}) {
+	        return new FetchModelsResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ok = source["ok"];
+	        this.error = source["error"];
+	        this.models = this.convertValues(source["models"], AIModelDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class FolderEntry {
 	    name: string;
 	    path: string;
@@ -67,6 +246,20 @@ export namespace main {
 	        this.name = source["name"];
 	        this.path = source["path"];
 	        this.isDir = source["isDir"];
+	    }
+	}
+	export class InstallUpdateRequest {
+	    assetUrl: string;
+	    assetName: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new InstallUpdateRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.assetUrl = source["assetUrl"];
+	        this.assetName = source["assetName"];
 	    }
 	}
 	export class ListFolderResult {
@@ -189,6 +382,70 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class SimpleResult {
+	    ok: boolean;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SimpleResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ok = source["ok"];
+	        this.error = source["error"];
+	    }
+	}
+	export class StartChatRequest {
+	    messages: ChatMessageDTO[];
+	    conversationId?: string;
+	    userMessage?: string;
+	    model?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new StartChatRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.messages = this.convertValues(source["messages"], ChatMessageDTO);
+	        this.conversationId = source["conversationId"];
+	        this.userMessage = source["userMessage"];
+	        this.model = source["model"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class StartChatResult {
+	    streamId?: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new StartChatResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.streamId = source["streamId"];
+	        this.error = source["error"];
+	    }
+	}
 	export class ToolResult {
 	    text: string;
 	    removed: number;
@@ -204,6 +461,74 @@ export namespace main {
 	        this.removed = source["removed"];
 	        this.count = source["count"];
 	    }
+	}
+	export class UpdateAssetDTO {
+	    name: string;
+	    url: string;
+	    size: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateAssetDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.url = source["url"];
+	        this.size = source["size"];
+	    }
+	}
+	export class UpdateInfoDTO {
+	    ok: boolean;
+	    error?: string;
+	    currentVersion: string;
+	    latestVersion?: string;
+	    hasUpdate: boolean;
+	    releaseName?: string;
+	    releaseNotes?: string;
+	    releaseUrl?: string;
+	    publishedAt?: string;
+	    asset?: UpdateAssetDTO;
+	    canAutoInstall: boolean;
+	    platform: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateInfoDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ok = source["ok"];
+	        this.error = source["error"];
+	        this.currentVersion = source["currentVersion"];
+	        this.latestVersion = source["latestVersion"];
+	        this.hasUpdate = source["hasUpdate"];
+	        this.releaseName = source["releaseName"];
+	        this.releaseNotes = source["releaseNotes"];
+	        this.releaseUrl = source["releaseUrl"];
+	        this.publishedAt = source["publishedAt"];
+	        this.asset = this.convertValues(source["asset"], UpdateAssetDTO);
+	        this.canAutoInstall = source["canAutoInstall"];
+	        this.platform = source["platform"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

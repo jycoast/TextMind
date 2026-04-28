@@ -4,6 +4,7 @@ export interface ShortcutHandlers {
   onSave: () => void;
   onOpenTemplate: () => void;
   onToggleColumnMode: () => void;
+  onToggleAIPanel?: () => void;
   onEscape: () => void;
 }
 
@@ -27,6 +28,18 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers): void {
     if (ev.ctrlKey && ev.altKey && !ev.shiftKey && !ev.metaKey && key === "l") {
       ev.preventDefault();
       handlers.onToggleColumnMode();
+      return;
+    }
+    if (
+      ev.ctrlKey &&
+      !ev.altKey &&
+      !ev.shiftKey &&
+      !ev.metaKey &&
+      key === "l" &&
+      handlers.onToggleAIPanel
+    ) {
+      ev.preventDefault();
+      handlers.onToggleAIPanel();
     }
   };
 

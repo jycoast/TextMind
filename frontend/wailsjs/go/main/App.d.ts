@@ -3,13 +3,35 @@
 import {main} from '../models';
 import {extract} from '../models';
 
+export function CancelChatStream(arg1:string):Promise<main.SimpleResult>;
+
+export function CancelUpdate():Promise<main.SimpleResult>;
+
+export function CheckForUpdate():Promise<main.UpdateInfoDTO>;
+
 export function ConsumeLaunchPath():Promise<string>;
+
+export function CreateConversation(arg1:string,arg2:string):Promise<main.ConversationDTO>;
 
 export function DedupeSelected(arg1:string):Promise<main.ToolResult>;
 
+export function DeleteConversation(arg1:string):Promise<main.SimpleResult>;
+
+export function DownloadAndInstallUpdate(arg1:main.InstallUpdateRequest):Promise<main.SimpleResult>;
+
 export function ExtractFromText(arg1:string,arg2:extract.Options):Promise<main.ExtractResult>;
 
+export function FetchAIModels(arg1:main.AIConfigDTO):Promise<main.FetchModelsResult>;
+
+export function GetAIConfig():Promise<main.AIConfigDTO>;
+
+export function GetAppVersion():Promise<string>;
+
+export function GetConversation(arg1:string):Promise<main.ConversationDTO>;
+
 export function KeepSingletonSelected(arg1:string):Promise<main.ToolResult>;
+
+export function ListConversations():Promise<main.ConversationListDTO>;
 
 export function ListFolder(arg1:string):Promise<main.ListFolderResult>;
 
@@ -23,14 +45,30 @@ export function OpenFolder():Promise<main.OpenFolderResult>;
 
 export function OpenLogDir():Promise<void>;
 
+export function OpenReleasesPage():Promise<void>;
+
 export function OpenTextFile():Promise<main.OpenFileResult>;
 
 export function OpenTextFileByPath(arg1:string):Promise<main.OpenFileResult>;
+
+export function RenameConversation(arg1:string,arg2:string):Promise<main.SimpleResult>;
+
+export function SaveAIConfig(arg1:main.AIConfigDTO):Promise<main.SimpleResult>;
 
 export function SaveSession(arg1:main.SessionPayload):Promise<boolean>;
 
 export function SaveTextFile(arg1:string,arg2:string):Promise<main.SaveFileResult>;
 
 export function SaveTextFileAs(arg1:string,arg2:string):Promise<main.SaveFileResult>;
+
+export function SelectConversation(arg1:string):Promise<main.SimpleResult>;
+
+export function SetConversationModel(arg1:string,arg2:string):Promise<main.SimpleResult>;
+
+export function SetVersion(arg1:string):Promise<void>;
+
+export function StartChatStream(arg1:main.StartChatRequest):Promise<main.StartChatResult>;
+
+export function TestAIConnection(arg1:main.AIConfigDTO):Promise<main.SimpleResult>;
 
 export function ToInListSelected(arg1:string):Promise<main.ToolResult>;

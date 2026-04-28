@@ -37,8 +37,10 @@ onMounted(() => {
     menus.openEditorContextMenu({ x: ev.clientX, y: ev.clientY });
   });
 
+  // setAdapter renders the current tab into the freshly-created editor
+  // automatically, so we don't need a separate renderCurrentIntoEditor call
+  // here.
   tabsStore.setAdapter(adapter);
-  tabsStore.renderCurrentIntoEditor();
 });
 
 onBeforeUnmount(() => {

@@ -16,6 +16,14 @@ import (
 //go:embed frontend/dist
 var frontendAssets embed.FS
 
+// Version is the application version. Default ("dev") is overridden at build
+// time via:
+//
+//	go build -ldflags "-X main.Version=v1.2.3"
+//
+// The release workflow injects the git tag here so the in-app updater can
+// compare the running build against GitHub releases.
+var Version = "dev"
 
 func main() {
 	logger := log.New(io.Discard, "", 0)
@@ -27,6 +35,7 @@ func main() {
 	}
 
 	app := NewApp(logger, launchPath)
+	app.SetVersion(Version)
 	err = wails.Run(&options.App{
 		Title:     "TextMind",
 		Width:     1000,

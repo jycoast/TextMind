@@ -71,11 +71,12 @@ jobs:
       - name: Build Windows amd64 binary
         shell: pwsh
         run: |
+          $version = "${{ steps.ver.outputs.version }}"
           wails build `
             -platform windows/amd64 `
             -clean `
             -trimpath `
-            -ldflags "-s -w"
+            -ldflags "-s -w -X main.Version=$version"
 
       - name: Package artifacts
         id: pkg

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"tinyEditor/dedupe"
@@ -18,10 +19,15 @@ import (
 )
 
 type App struct {
-	ctx         context.Context
-	logger      *log.Logger
-	sessionPath string
-	launchPath  string
+	ctx          context.Context
+	logger       *log.Logger
+	sessionPath  string
+	launchPath   string
+	aiConfigPath string
+	aiConvPath   string
+	aiMu         sync.Mutex
+	aiStreams    streamRegistry
+	version      string
 }
 
 type SessionPayload struct {
@@ -77,10 +83,22 @@ type ListFolderResult struct {
 
 func NewApp(logger *log.Logger, launchPath string) *App {
 	return &App{
-		logger:      logger,
-		sessionPath: sessionFilePath(logger),
-		launchPath:  strings.TrimSpace(launchPath),
+		logger:       logger,
+		sessionPath:  sessionFilePath(logger),
+		aiConfigPath: aiConfigFilePath(logger),
+		aiConvPath:   aiConversationsFilePath(logger),
+		launchPath:   strings.TrimSpace(launchPath),
 	}
+}
+
+// SetVersion records the running build's version string. main injects the
+// value baked in at compile time; tests can override it directly.
+func (a *App) SetVersion(v string) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		v = "dev"
+	}
+	a.version = v
 }
 
 func (a *App) startup(ctx context.Context) {
@@ -89,6 +107,7 @@ func (a *App) startup(ctx context.Context) {
 
 func (a *App) shutdown(context.Context) {
 	// Session is saved by explicit frontend call.
+	a.aiStreams.cancelAll()
 }
 
 func sessionFilePath(logger *log.Logger) string {
@@ -96,6 +115,24 @@ func sessionFilePath(logger *log.Logger) string {
 	if err != nil {
 		logger.Printf("user config dir unavailable, using local session.json: %v", err)
 		return "tinyEditor-session.json"
+	}
+	return p
+}
+
+func aiConfigFilePath(logger *log.Logger) string {
+	p, err := persist.AIConfigPath()
+	if err != nil {
+		logger.Printf("user config dir unavailable, using local ai-config.json: %v", err)
+		return "tinyEditor-ai-config.json"
+	}
+	return p
+}
+
+func aiConversationsFilePath(logger *log.Logger) string {
+	p, err := persist.AIConversationsPath()
+	if err != nil {
+		logger.Printf("user config dir unavailable, using local ai-conversations.json: %v", err)
+		return "tinyEditor-ai-conversations.json"
 	}
 	return p
 }

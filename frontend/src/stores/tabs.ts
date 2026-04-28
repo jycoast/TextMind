@@ -57,6 +57,14 @@ export const useTabsStore = defineStore("tabs", () => {
 
   function setAdapter(a: EditorAdapter | null): void {
     adapter.value = a;
+    // When a fresh editor adapter attaches, push the current tab's content
+    // into it. This handles the case where session restore (or any other
+    // tab mutation) happened BEFORE the editor mounted: without this call
+    // the tab bar would show the restored file but Monaco would still be
+    // showing the empty placeholder it was created with.
+    if (a) {
+      renderCurrentIntoEditor();
+    }
   }
 
   function findIndexByPath(path: string): number {
@@ -341,11 +349,16 @@ export const useTabsStore = defineStore("tabs", () => {
         0,
         Math.min(payload.selectedIndex || 0, tabs.value.length - 1),
       );
-      return;
+    } else {
+      tabs.value = [newTabObject()];
+      selectedIndex.value = 0;
+      nextTabSeq.value = 0;
     }
-    tabs.value = [newTabObject()];
-    selectedIndex.value = 0;
-    nextTabSeq.value = 0;
+    // Push the freshly-restored selection into the editor in case the
+    // adapter already mounted before us (the common path: child components
+    // mount before App.vue's onMounted runs loadSessionIntoStores).
+    // Safe to call when the adapter is still null — it's a no-op.
+    renderCurrentIntoEditor();
   }
 
   function markDirty(): void {
