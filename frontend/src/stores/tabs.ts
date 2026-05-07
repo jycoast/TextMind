@@ -383,6 +383,15 @@ export const useTabsStore = defineStore("tabs", () => {
     return { ok: true, language: tab.language };
   }
 
+  function setCurrentLanguage(language: string): boolean {
+    const tab = current.value;
+    if (!tab) return false;
+    const lang = normalizeLanguage(language);
+    tab.language = lang;
+    if (adapter.value) adapter.value.setLanguage(lang);
+    return true;
+  }
+
   return {
     tabs,
     selectedIndex,
@@ -413,5 +422,6 @@ export const useTabsStore = defineStore("tabs", () => {
     restoreFromSession,
     markDirty,
     detectAndApplyCurrentLanguage,
+    setCurrentLanguage,
   };
 });
