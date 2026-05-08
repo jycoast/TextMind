@@ -181,8 +181,15 @@ export function createMonacoAdapter(
     setValue: (value) => {
       if (editor.getValue() !== value) {
         editor.setValue(value || "");
-        editor.setScrollTop(0);
-        editor.setScrollLeft(0);
+        editor.setPosition({ lineNumber: 1, column: 1 });
+        editor.setScrollPosition(
+          { scrollTop: 0, scrollLeft: 0 },
+          monaco.editor.ScrollType.Immediate,
+        );
+        editor.revealPosition(
+          { lineNumber: 1, column: 1 },
+          monaco.editor.ScrollType.Immediate,
+        );
         editor.render(true);
       }
     },
@@ -197,7 +204,14 @@ export function createMonacoAdapter(
     replaceSelection: (text) => {
       const sel = editor.getSelection();
       if (!sel || sel.isEmpty()) return false;
+      const startLine = sel.startLineNumber;
+      const startColumn = sel.startColumn;
       editor.executeEdits("tinyEditor", [{ range: sel, text }]);
+      editor.setPosition({ lineNumber: startLine, column: startColumn });
+      editor.revealPosition(
+        { lineNumber: startLine, column: startColumn },
+        monaco.editor.ScrollType.Immediate,
+      );
       return true;
     },
 

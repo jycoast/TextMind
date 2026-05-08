@@ -26,12 +26,6 @@ const PRESETS: Preset[] = [
     prompt: "请将下面的文本翻译为简洁通顺的中文，仅返回译文：",
   },
   {
-    id: "to-sql-in",
-    label: "转 SQL IN 列表",
-    prompt:
-      "请将下面的内容整理成一个 SQL IN(...) 列表（字符串值用单引号包围、用逗号分隔，不要返回多余说明）：",
-  },
-  {
     id: "summarize",
     label: "总结要点",
     prompt: "请用 3-5 个要点总结下面的内容：",
@@ -79,7 +73,8 @@ const finalUserMessage = computed<string>(() => {
 
 const canRun = computed<boolean>(() => {
   if (!cfg.isConfigured) return false;
-  if (selectedPreset.value === "custom") return customPrompt.value.trim().length > 0;
+  if (selectedPreset.value === "custom")
+    return customPrompt.value.trim().length > 0;
   return true;
 });
 
@@ -230,7 +225,10 @@ function close() {
                   color: 'var(--muted)',
                 }
           "
-          @click="selectedPreset = 'custom'; nextTick(() => customRef?.focus())"
+          @click="
+            selectedPreset = 'custom';
+            nextTick(() => customRef?.focus());
+          "
         >
           自定义
         </button>
@@ -302,10 +300,7 @@ function close() {
         {{ previewText || (status === "streaming" ? "▍" : "") }}
       </div>
 
-      <div
-        class="min-h-[18px] text-xs mt-2"
-        :style="{ color: '#f08f8f' }"
-      >
+      <div class="min-h-[18px] text-xs mt-2" :style="{ color: '#f08f8f' }">
         {{ errorMsg }}
       </div>
 
@@ -325,7 +320,11 @@ function close() {
           <button
             v-else
             class="tm-menu-item"
-            style="width: auto; border: 1px solid var(--accent); color: var(--text)"
+            style="
+              width: auto;
+              border: 1px solid var(--accent);
+              color: var(--text);
+            "
             :disabled="!canRun"
             @click="run"
           >

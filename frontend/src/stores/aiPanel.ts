@@ -29,6 +29,7 @@ export const useAIPanelStore = defineStore("aiPanel", () => {
   const visible = ref<boolean>(loadInitialVisible());
   const width = ref<number>(loadInitialWidth());
   const resizing = ref<boolean>(false);
+  const pendingInput = ref<string>("");
 
   watch(visible, (v) => {
     try {
@@ -69,16 +70,27 @@ export const useAIPanelStore = defineStore("aiPanel", () => {
     }
   }
 
+  function setPendingInput(text: string): void {
+    pendingInput.value = String(text ?? "");
+  }
+
+  function clearPendingInput(): void {
+    pendingInput.value = "";
+  }
+
   return {
     visible,
     width,
     resizing,
+    pendingInput,
     MIN_WIDTH,
     MAX_WIDTH,
     setWidth,
     toggleVisible,
     setVisible,
     setResizing,
+    setPendingInput,
+    clearPendingInput,
   };
 });
 

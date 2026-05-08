@@ -343,6 +343,7 @@ function runJsonOp(variant: "format" | "minify") {
   } else if (tabs.adapter) {
     tabs.adapter.setValue(res.text);
   }
+  tabs.setCurrentLanguage("json");
   ui.showTip(variant === "format" ? "已格式化 JSON" : "已压缩 JSON");
 }
 
@@ -354,6 +355,17 @@ function onMinifyJson() {
   runJsonOp("minify");
 }
 
+function insertSelectionToAIChat() {
+  menus.closeEverything();
+  const sel = tabs.getSelectionText();
+  if (!sel.trim()) {
+    ui.showTip("没有选中文本");
+    return;
+  }
+  aiPanel.setVisible(true);
+  aiPanel.setPendingInput(sel);
+}
+
 function onEditorMenuAction(
   action:
     | "extract"
@@ -362,12 +374,14 @@ function onEditorMenuAction(
     | "inlist"
     | "format-json"
     | "minify-json"
-    | "ai-inline",
+    | "ai-inline"
+    | "ai-insert-input",
 ) {
   if (action === "extract") return showExtract();
   if (action === "format-json") return onFormatJson();
   if (action === "minify-json") return onMinifyJson();
   if (action === "ai-inline") return showAIInline();
+  if (action === "ai-insert-input") return insertSelectionToAIChat();
   return onContextAction(action);
 }
 

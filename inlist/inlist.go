@@ -15,8 +15,8 @@ func QuotedCommaLines(input string) (result string, count int) {
 		if s == "" {
 			continue
 		}
-		escaped := strings.ReplaceAll(s, `"`, `""`)
-		parts = append(parts, `"`+escaped+`"`)
+		escaped := strings.ReplaceAll(s, `'`, `''`)
+		parts = append(parts, `'`+escaped+`'`)
 	}
 	if len(parts) == 0 {
 		return "", 0

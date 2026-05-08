@@ -22,7 +22,9 @@ const tabs = useTabsStore();
 const { isEditMenuOpen } = storeToRefs(menus);
 const { adapter, columnMode } = storeToRefs(tabs);
 
-const columnSupported = computed(() => Boolean(adapter.value?.supportsColumnMode));
+const columnSupported = computed(() =>
+  Boolean(adapter.value?.supportsColumnMode),
+);
 const columnLabel = computed(() =>
   columnMode.value && columnSupported.value ? "列编辑  (已开启)" : "列编辑",
 );
@@ -111,7 +113,7 @@ function click(action: Action) {
         {{ columnLabel }}
       </button>
       <button class="tm-menu-item" role="menuitem" @click="click('extract')">
-        提取...
+        提取文本
       </button>
       <button class="tm-menu-item" role="menuitem" @click="click('dedupe')">
         去重
@@ -151,12 +153,8 @@ function click(action: Action) {
         自动识别语言
       </button>
       <div class="tm-menu-sep"></div>
-      <button
-        class="tm-menu-item"
-        role="menuitem"
-        @click="click('ai-inline')"
-      >
-        AI 询问选区...
+      <button class="tm-menu-item" role="menuitem" @click="click('ai-inline')">
+        AI 询问选区
       </button>
     </div>
   </div>

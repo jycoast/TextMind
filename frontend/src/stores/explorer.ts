@@ -19,9 +19,11 @@ function loadInitialWidth(): number {
 
 function loadInitialCollapsed(): boolean {
   try {
-    return window.localStorage.getItem(COLLAPSED_KEY) === "1";
+    const v = window.localStorage.getItem(COLLAPSED_KEY);
+    if (v === null) return true;
+    return v === "1";
   } catch {
-    return false;
+    return true;
   }
 }
 

@@ -88,6 +88,28 @@ watch(
   },
 );
 
+watch(
+  () => panel.pendingInput,
+  async (text) => {
+    if (!text) return;
+    if (inputText.value.trim().length === 0) {
+      inputText.value = text;
+    } else {
+      inputText.value = `${inputText.value}\n${text}`;
+    }
+    panel.clearPendingInput();
+    await nextTick();
+    const el = inputRef.value;
+    if (el) {
+      el.focus();
+      const end = el.value.length;
+      el.setSelectionRange(end, end);
+      el.scrollTop = el.scrollHeight;
+    }
+  },
+  { immediate: true },
+);
+
 onMounted(async () => {
   if (!cfg.loaded) await cfg.load();
   if (visible.value) {
