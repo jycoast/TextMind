@@ -14,7 +14,6 @@ const emit = defineEmits<{
   (e: "format-json"): void;
   (e: "minify-json"): void;
   (e: "detect-language"): void;
-  (e: "ai-inline"): void;
 }>();
 
 const menus = useMenusStore();
@@ -42,8 +41,7 @@ type Action =
   | "toggle-column"
   | "format-json"
   | "minify-json"
-  | "detect-language"
-  | "ai-inline";
+  | "detect-language";
 function click(action: Action) {
   switch (action) {
     case "extract":
@@ -72,9 +70,6 @@ function click(action: Action) {
       break;
     case "detect-language":
       emit("detect-language");
-      break;
-    case "ai-inline":
-      emit("ai-inline");
       break;
   }
   menus.closeAllTopMenus();
@@ -151,10 +146,6 @@ function click(action: Action) {
         @click="click('detect-language')"
       >
         自动识别语言
-      </button>
-      <div class="tm-menu-sep"></div>
-      <button class="tm-menu-item" role="menuitem" @click="click('ai-inline')">
-        AI 询问选区
       </button>
     </div>
   </div>

@@ -81,19 +81,15 @@ function pickTheme(next: "dark" | "light") {
           @pick="pickTheme"
         />
       </div>
-      <button
-        class="tm-menu-item"
-        role="menuitem"
-        @click.stop="openAISettings"
-      >
-        AI 设置...
+      <button class="tm-menu-item" role="menuitem" @click.stop="openAISettings">
+        AI 设置
       </button>
       <button
         class="tm-menu-item"
         role="menuitem"
         @click.stop="openCheckForUpdates"
       >
-        检查更新...
+        检查更新
       </button>
     </div>
   </div>

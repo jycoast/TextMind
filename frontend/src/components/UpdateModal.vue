@@ -22,6 +22,8 @@ const {
   totalBytes,
   downloadProgress,
   canAutoInstall,
+  stagingPath,
+  stagedFallback,
 } = storeToRefs(store);
 
 watch(
@@ -147,6 +149,27 @@ function onOpenReleasePage() {
           <span class="font-mono text-right break-all">{{
             pickedAssetLabel
           }}</span>
+        </div>
+        <div
+          v-if="
+            stagingPath &&
+            (status === 'downloading' || status === 'applying')
+          "
+          class="flex flex-col gap-1"
+        >
+          <div class="flex justify-between gap-3">
+            <span :style="{ color: 'var(--muted)' }">下载位置</span>
+            <span class="font-mono text-right break-all text-[12px]">{{
+              stagingPath
+            }}</span>
+          </div>
+          <div
+            v-if="stagedFallback"
+            class="text-[12px] text-right"
+            :style="{ color: 'var(--muted)' }"
+          >
+            当前安装目录无写入权限，已回退到系统临时目录
+          </div>
         </div>
       </div>
 

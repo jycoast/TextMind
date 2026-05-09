@@ -32,6 +32,14 @@ interface ProgressPayload {
   downloaded?: number;
   total?: number;
   error?: string;
+  // Absolute path of the file the backend is writing the download to.
+  // Surfaced so the UI can show "下载位置" and reassure the user the
+  // file is appearing where they expect.
+  stagingPath?: string;
+  // True when the backend couldn't use the install dir (e.g. Program
+  // Files without elevation) and fell back to %TEMP%. Drives the
+  // "已回退到系统临时目录" hint in the modal.
+  fallback?: boolean;
 }
 
 function readLastCheckMs(): number {
@@ -60,6 +68,13 @@ export const useUpdateStore = defineStore("update", () => {
 
   const downloadedBytes = ref<number>(0);
   const totalBytes = ref<number>(0);
+
+  // Where the backend is currently writing the staged update binary.
+  // Empty until the first download progress event arrives.
+  const stagingPath = ref<string>("");
+  // True when the install dir was not writable and the backend fell back
+  // to %TEMP%. The modal uses this to render an explanatory hint.
+  const stagedFallback = ref<boolean>(false);
 
   const lastCheckMs = ref<number>(readLastCheckMs());
 
@@ -161,6 +176,8 @@ export const useUpdateStore = defineStore("update", () => {
 
     downloadedBytes.value = 0;
     totalBytes.value = asset.size || 0;
+    stagingPath.value = "";
+    stagedFallback.value = false;
     error.value = "";
     status.value = "downloading";
 
@@ -172,6 +189,12 @@ export const useUpdateStore = defineStore("update", () => {
       }
       if (typeof payload.total === "number" && payload.total > 0) {
         totalBytes.value = payload.total;
+      }
+      if (typeof payload.stagingPath === "string" && payload.stagingPath) {
+        stagingPath.value = payload.stagingPath;
+      }
+      if (typeof payload.fallback === "boolean") {
+        stagedFallback.value = payload.fallback;
       }
       switch (payload.phase) {
         case "applying":
@@ -233,6 +256,8 @@ export const useUpdateStore = defineStore("update", () => {
     error.value = "";
     downloadedBytes.value = 0;
     totalBytes.value = 0;
+    stagingPath.value = "";
+    stagedFallback.value = false;
   }
 
   return {
@@ -242,6 +267,8 @@ export const useUpdateStore = defineStore("update", () => {
     info,
     downloadedBytes,
     totalBytes,
+    stagingPath,
+    stagedFallback,
     lastCheckMs,
     hasUpdate,
     downloadProgress,

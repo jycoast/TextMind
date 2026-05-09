@@ -14,7 +14,6 @@ import ExtractModal from "@/components/ExtractModal.vue";
 import AIChatPanel from "@/components/AIChatPanel.vue";
 import AIPanelSplitter from "@/components/AIPanelSplitter.vue";
 import AISettingsModal from "@/components/AISettingsModal.vue";
-import AIInlineModal from "@/components/AIInlineModal.vue";
 import UpdateModal from "@/components/UpdateModal.vue";
 import { useTabsStore } from "@/stores/tabs";
 import { useMenusStore } from "@/stores/menus";
@@ -25,7 +24,6 @@ import { useAIPanelStore } from "@/stores/aiPanel";
 import { useAIConfigStore } from "@/stores/aiConfig";
 import { useAIChatStore } from "@/stores/aiChat";
 import { useUpdateStore } from "@/stores/update";
-import { useAIChat } from "@/composables/useAIChat";
 import { backend } from "@/api/backend";
 import { guessLanguageByFilename } from "@/composables/useLanguageGuess";
 import { pathBaseName } from "@/utils/normalize";
@@ -45,7 +43,6 @@ const aiPanel = useAIPanelStore();
 const aiConfig = useAIConfigStore();
 const aiChat = useAIChatStore();
 const updateStore = useUpdateStore();
-const aiApi = useAIChat();
 const { tabs: tabList } = storeToRefs(tabs);
 
 const templateVisible = ref(false);
@@ -55,8 +52,6 @@ const extractVisible = ref(false);
 const extractSource = ref("");
 
 const aiSettingsVisible = ref(false);
-const aiInlineVisible = ref(false);
-const aiInlineSource = ref("");
 
 const updateModalVisible = ref(false);
 
@@ -149,72 +144,6 @@ function toggleAIPanel() {
     aiChat.loadList().catch(() => {});
   }
   setTimeout(() => tabs.adapter?.forceRefresh(), 0);
-}
-
-function showAIInline() {
-  menus.closeEverything();
-  const sel = tabs.getSelectionText();
-  aiInlineSource.value = sel.trim() ? sel : (tabs.adapter?.getValue() ?? "");
-  if (!aiInlineSource.value.trim()) {
-    ui.showTip("没有可处理的文本");
-    return;
-  }
-  aiInlineVisible.value = true;
-}
-
-function hideAIInline() {
-  aiInlineVisible.value = false;
-}
-
-function onAIInlineReplace(text: string) {
-  const ok = tabs.replaceSelection(text);
-  if (!ok) {
-    ui.showTip('当前没有选区可替换，请改用"插入到光标"或"送入面板"');
-    return;
-  }
-  hideAIInline();
-  ui.showTip("已替换选区");
-}
-
-function onAIInlineInsert(text: string) {
-  const ok = tabs.replaceSelection(text);
-  if (!ok) {
-    tabs.addTabFromText("AI 输出", text, "plaintext");
-    ui.showTip("无插入位置，已新建Tab");
-  } else {
-    ui.showTip("已插入到光标");
-  }
-  hideAIInline();
-}
-
-async function onAIInlineSendToPanel(
-  userMessage: string,
-  assistantMessage: string,
-) {
-  hideAIInline();
-  aiPanel.setVisible(true);
-  if (!aiConfig.loaded) await aiConfig.load();
-  await aiChat.loadList();
-  const conv = await aiChat.createConversation(
-    "选区对话",
-    aiConfig.config.defaultModel,
-  );
-  if (!conv) {
-    ui.showTip("创建会话失败");
-    return;
-  }
-  // Replay the inline exchange in the new conversation. We use sendInConversation
-  // so the assistant continuation remains streaming-capable, but for now we
-  // simply seed the conversation by issuing the same user message and ignore
-  // the assistantMessage we already produced (the API gives a fresh answer).
-  void assistantMessage;
-  const result = await aiApi.sendInConversation({
-    conversationId: conv.id,
-    userMessage,
-  });
-  if ("error" in result) {
-    ui.showTip(result.error);
-  }
 }
 
 async function onOpenFile() {
@@ -374,13 +303,11 @@ function onEditorMenuAction(
     | "inlist"
     | "format-json"
     | "minify-json"
-    | "ai-inline"
     | "ai-insert-input",
 ) {
   if (action === "extract") return showExtract();
   if (action === "format-json") return onFormatJson();
   if (action === "minify-json") return onMinifyJson();
-  if (action === "ai-inline") return showAIInline();
   if (action === "ai-insert-input") return insertSelectionToAIChat();
   return onContextAction(action);
 }
@@ -428,10 +355,6 @@ useKeyboardShortcuts({
   onEscape: () => {
     if (updateModalVisible.value) {
       hideUpdateModal();
-      return;
-    }
-    if (aiInlineVisible.value) {
-      hideAIInline();
       return;
     }
     if (aiSettingsVisible.value) {
@@ -487,7 +410,6 @@ onMounted(async () => {
     @format-json="onFormatJson"
     @minify-json="onMinifyJson"
     @detect-language="onDetectLanguage"
-    @ai-inline="showAIInline"
     @open-ai-settings="showAISettings"
     @toggle-ai-panel="toggleAIPanel"
     @check-for-updates="showUpdateModal"
@@ -520,14 +442,6 @@ onMounted(async () => {
     @new-tab="onExtractNewTab"
   />
   <AISettingsModal :visible="aiSettingsVisible" @close="hideAISettings" />
-  <AIInlineModal
-    :visible="aiInlineVisible"
-    :source="aiInlineSource"
-    @close="hideAIInline"
-    @replace="onAIInlineReplace"
-    @insert="onAIInlineInsert"
-    @send-to-panel="onAIInlineSendToPanel"
-  />
   <UpdateModal :visible="updateModalVisible" @close="hideUpdateModal" />
   <div class="sr-only">{{ tabList.length }}</div>
 </template>

@@ -9,7 +9,6 @@ export type EditorContextAction =
   | "inlist"
   | "format-json"
   | "minify-json"
-  | "ai-inline"
   | "ai-insert-input";
 
 const emit = defineEmits<{
@@ -41,7 +40,6 @@ function handle(action: EditorContextAction) {
     <button @click="handle('inlist')">转IN列表</button>
     <button @click="handle('format-json')">格式化 JSON</button>
     <button @click="handle('minify-json')">压缩 JSON</button>
-    <button @click="handle('ai-inline')">AI 询问选区</button>
     <button @click="handle('ai-insert-input')">插入到 AI 对话框</button>
   </div>
 </template>

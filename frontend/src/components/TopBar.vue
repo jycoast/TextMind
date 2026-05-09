@@ -19,7 +19,6 @@ defineEmits<{
   (e: "format-json"): void;
   (e: "minify-json"): void;
   (e: "detect-language"): void;
-  (e: "ai-inline"): void;
   (e: "open-ai-settings"): void;
   (e: "toggle-ai-panel"): void;
   (e: "check-for-updates"): void;
@@ -51,7 +50,6 @@ const { visible: aiPanelVisible } = storeToRefs(aiPanel);
         @format-json="$emit('format-json')"
         @minify-json="$emit('minify-json')"
         @detect-language="$emit('detect-language')"
-        @ai-inline="$emit('ai-inline')"
       />
       <SettingsMenu
         @open-ai-settings="$emit('open-ai-settings')"

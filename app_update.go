@@ -262,8 +262,23 @@ func (a *App) DownloadAndInstallUpdate(req InstallUpdateRequest) SimpleResult {
 	updateCancel = cancel
 	updateMu.Unlock()
 
-	stagingDir := filepath.Join(os.TempDir(), "TextMind-update")
-	stagedExe := filepath.Join(stagingDir, name)
+	// Stage next to the running exe when possible, so the user can see the
+	// new binary in the same folder they launched the app from and the
+	// helper move is a same-volume rename. Falls back to %TEMP% when the
+	// install dir is not writable (e.g. Program Files without elevation).
+	stagingDir, fellBack, stageErr := update.ResolveStagingDir(currentExe)
+	if stageErr != nil {
+		updateMu.Lock()
+		updateRunning = false
+		updateCancel = nil
+		updateMu.Unlock()
+		return SimpleResult{Error: "无法准备更新目录: " + stageErr.Error()}
+	}
+	// `.new` suffix keeps the staged file from colliding with the currently
+	// running exe when stagingDir is the install dir, and makes it visually
+	// obvious which file is the in-flight download.
+	stagedExe := filepath.Join(stagingDir, name+".new")
+	a.logger.Printf("update: staging %s (fallback=%v)", stagedExe, fellBack)
 
 	go func() {
 		defer func() {
@@ -273,16 +288,25 @@ func (a *App) DownloadAndInstallUpdate(req InstallUpdateRequest) SimpleResult {
 			updateMu.Unlock()
 		}()
 
-		a.emitUpdate(map[string]any{"phase": "download", "downloaded": int64(0), "total": int64(0)})
+		a.emitUpdate(map[string]any{
+			"phase":       "download",
+			"downloaded":  int64(0),
+			"total":       int64(0),
+			"stagingPath": stagedExe,
+			"fallback":    fellBack,
+		})
 
 		err := update.DownloadAsset(dlCtx, url, stagedExe, func(d, total int64) {
 			a.emitUpdate(map[string]any{
-				"phase":      "download",
-				"downloaded": d,
-				"total":      total,
+				"phase":       "download",
+				"downloaded":  d,
+				"total":       total,
+				"stagingPath": stagedExe,
+				"fallback":    fellBack,
 			})
 		})
 		if err != nil {
+			cleanupStagedFiles(stagedExe)
 			a.logger.Printf("update: download failed: %v", err)
 			a.emitUpdate(map[string]any{
 				"phase": "error",
@@ -291,9 +315,14 @@ func (a *App) DownloadAndInstallUpdate(req InstallUpdateRequest) SimpleResult {
 			return
 		}
 
-		a.emitUpdate(map[string]any{"phase": "applying"})
+		a.emitUpdate(map[string]any{
+			"phase":       "applying",
+			"stagingPath": stagedExe,
+			"fallback":    fellBack,
+		})
 
 		if err := update.Apply(stagedExe, currentExe); err != nil {
+			cleanupStagedFiles(stagedExe)
 			a.logger.Printf("update: apply failed: %v", err)
 			a.emitUpdate(map[string]any{
 				"phase": "error",
@@ -312,6 +341,22 @@ func (a *App) DownloadAndInstallUpdate(req InstallUpdateRequest) SimpleResult {
 	}()
 
 	return SimpleResult{OK: true}
+}
+
+// cleanupStagedFiles removes the staged exe and any half-written .part
+// sibling produced by DownloadAsset.
+//
+// We do this on every failure / cancel branch so a user retrying after a
+// crashed download doesn't accumulate stray TextMind-*.exe.new files
+// next to their app. It is intentionally NOT called on the success path:
+// the helper script moves stagedExe into place after we exit, and
+// removing it here would race with that move.
+func cleanupStagedFiles(stagedExe string) {
+	if stagedExe == "" {
+		return
+	}
+	_ = os.Remove(stagedExe)
+	_ = os.Remove(stagedExe + ".part")
 }
 
 // CancelUpdate aborts an in-flight download. Safe to call when nothing is
