@@ -116,7 +116,26 @@ interface CacheEntry {
 
 const cache = new WeakMap<monaco.editor.ITextModel, CacheEntry>();
 
-let registered = false;
+// Key on globalThis so the registration survives Vite HMR reloads of
+// this module. A plain module-level boolean would be reset to false on
+// each reload, causing us to call `registerInlayHintsProvider` again
+// without disposing the previous one — Monaco then asks BOTH providers
+// for hints and renders the same number twice on the same line.
+const HMR_REGISTRATION_KEY = "__textmind_jsonElementCountHintsDisposable";
+
+interface HmrSlot {
+  dispose: monaco.IDisposable | null;
+}
+
+function getHmrSlot(): HmrSlot {
+  const g = globalThis as unknown as Record<string, HmrSlot | undefined>;
+  let slot = g[HMR_REGISTRATION_KEY];
+  if (!slot) {
+    slot = { dispose: null };
+    g[HMR_REGISTRATION_KEY] = slot;
+  }
+  return slot;
+}
 
 /**
  * Idempotently registers a Monaco InlayHintsProvider for the `json`
@@ -127,38 +146,70 @@ let registered = false;
  *   - Inlay hint providers are a global registry on `monaco.languages`,
  *     not a per-editor binding. Registering once on first import is the
  *     idiomatic pattern.
- *   - The internal `registered` guard makes repeated calls safe — handy
- *     during Vite HMR, where the consumer module may re-evaluate this
- *     import.
+ *   - We dispose any previous registration before installing a new one,
+ *     so Vite HMR re-evaluating this module doesn't accumulate stacked
+ *     providers (the visible symptom of which is the count being
+ *     rendered twice).
  *
  * The hint cache keyed by ITextModel + versionId means typing inside a
  * large JSON doc only re-scans on actual changes, not on every viewport
  * refresh that Monaco triggers internally.
  */
 export function registerJsonElementCountHints(): void {
-  if (registered) return;
-  registered = true;
+  const slot = getHmrSlot();
+  if (slot.dispose) {
+    try {
+      slot.dispose.dispose();
+    } catch {
+      // ignore — older provider already torn down
+    }
+    slot.dispose = null;
+  }
 
-  monaco.languages.registerInlayHintsProvider("json", {
-    provideInlayHints(model) {
-      const cached = cache.get(model);
+  slot.dispose = monaco.languages.registerInlayHintsProvider("json", {
+    provideInlayHints(model, range) {
       const version = model.getVersionId();
+      let allHints: monaco.languages.InlayHint[];
+
+      const cached = cache.get(model);
       if (cached && cached.version === version) {
-        return { hints: cached.hints, dispose: () => {} };
+        allHints = cached.hints;
+      } else {
+        const raw = computeBracketCountHints(model.getValue());
+        allHints = raw.map((h) => {
+          const pos = model.getPositionAt(h.offset);
+          return {
+            position: { lineNumber: pos.lineNumber, column: pos.column },
+            label: String(h.count),
+            kind: monaco.languages.InlayHintKind.Type,
+            paddingLeft: true,
+          };
+        });
+        cache.set(model, { version, hints: allHints });
       }
 
-      const raw = computeBracketCountHints(model.getValue());
-      const hints: monaco.languages.InlayHint[] = raw.map((h) => {
-        const pos = model.getPositionAt(h.offset);
-        return {
-          position: { lineNumber: pos.lineNumber, column: pos.column },
-          label: String(h.count),
-          kind: monaco.languages.InlayHintKind.Type,
-          paddingLeft: true,
-        };
-      });
+      // Only return hints inside the queried range, AND build a fresh
+      // array on every call. Two reasons:
+      //
+      //   1. Folding bug: when the user collapses a region, Monaco
+      //      re-queries this provider with a tighter visible range. If
+      //      we hand back hints whose line is now hidden, Monaco
+      //      renders them again at the fold boundary, producing the
+      //      "count shown twice" duplication on the same line.
+      //   2. Returning the cached array reference makes Monaco's
+      //      internal hint reconciler conflate stale and fresh
+      //      results, which has been observed to double-render in some
+      //      versions. A new array per call sidesteps that.
+      const startLine = range.startLineNumber;
+      const endLine = range.endLineNumber;
+      const hints: monaco.languages.InlayHint[] = [];
+      for (const h of allHints) {
+        const ln = h.position.lineNumber;
+        if (ln >= startLine && ln <= endLine) {
+          hints.push(h);
+        }
+      }
 
-      cache.set(model, { version, hints });
       return { hints, dispose: () => {} };
     },
   });
