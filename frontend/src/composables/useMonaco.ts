@@ -1,6 +1,11 @@
 import * as monaco from "monaco-editor";
 import type { EditorAdapter, MonacoViewState } from "@/types";
 import { normalizeLanguage, normalizeViewState } from "@/utils/normalize";
+import { registerJsonElementCountHints } from "@/composables/useJsonInlayHints";
+
+// Inlay-hint provider lives on monaco.languages, not on individual
+// editors. Register once at module load so every JSON model picks it up.
+registerJsonElementCountHints();
 
 export function defineMonacoThemes(): void {
   monaco.editor.defineTheme("tiny-minimal", {
@@ -18,6 +23,8 @@ export function defineMonacoThemes(): void {
       "editor.lineHighlightBackground": "#ffffff06",
       "scrollbarSlider.background": "#ffffff18",
       "scrollbarSlider.hoverBackground": "#ffffff28",
+      "editorInlayHint.foreground": "#7a7d86",
+      "editorInlayHint.background": "#00000000",
     },
   });
   monaco.editor.defineTheme("tiny-light", {
@@ -35,6 +42,8 @@ export function defineMonacoThemes(): void {
       "editor.lineHighlightBackground": "#00000008",
       "scrollbarSlider.background": "#0000001f",
       "scrollbarSlider.hoverBackground": "#00000033",
+      "editorInlayHint.foreground": "#8a95a8",
+      "editorInlayHint.background": "#00000000",
     },
   });
 }
