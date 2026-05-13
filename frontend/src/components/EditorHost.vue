@@ -37,6 +37,19 @@ onMounted(() => {
     menus.openEditorContextMenu({ x: ev.clientX, y: ev.clientY });
   });
 
+  // 列编辑模式下，Monaco 会在每行末尾放一个光标。一旦用户通过点击、
+  // Esc、方向键等方式让多光标塌缩回单光标，列编辑状态就应该自动结束，
+  // 否则菜单栏会一直显示「已开启」，与编辑器实际状态不一致。
+  // 仅在 “多光标 -> 单光标” 的过渡时触发，避免对仅 1 行的文件刚开启就被关闭。
+  let lastSelectionsCount = 1;
+  adapter.onSelectionsChange((count) => {
+    const previous = lastSelectionsCount;
+    lastSelectionsCount = count;
+    if (previous > 1 && count <= 1 && tabsStore.columnMode) {
+      tabsStore.columnMode = false;
+    }
+  });
+
   // setAdapter renders the current tab into the freshly-created editor
   // automatically, so we don't need a separate renderCurrentIntoEditor call
   // here.

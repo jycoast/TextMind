@@ -240,4 +240,6 @@ go test ./update -v
 
 ## License
 
-本仓库目前未声明许可证，默认遵循「保留所有权利」。如需在你的项目中使用代码，请先与作者联系。
+本项目基于 [MIT License](./LICENSE) 开源，详细条款见仓库根目录的 `LICENSE` 文件。
+
+Copyright (c) 2026 jycoast

@@ -115,6 +115,13 @@ export function createMonacoAdapter(
   };
   host.addEventListener("contextmenu", contextMenuListener);
 
+  const selectionsChangeHandlers: Array<(count: number) => void> = [];
+  editor.onDidChangeCursorSelection(() => {
+    const selections = editor.getSelections();
+    const count = selections ? selections.length : 0;
+    selectionsChangeHandlers.forEach((h) => h(count));
+  });
+
   const adapter: EditorAdapter = {
     mode: "monaco",
     supportsColumnMode: true,
@@ -230,6 +237,10 @@ export function createMonacoAdapter(
 
     onContextMenu: (handler) => {
       contextMenuHandlers.push(handler);
+    },
+
+    onSelectionsChange: (handler) => {
+      selectionsChangeHandlers.push(handler);
     },
 
     setColumnMode: (enabled) => applyColumnMode(enabled),

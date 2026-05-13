@@ -68,6 +68,7 @@ export interface EditorAdapter {
   focus: () => void;
   onChange: (handler: () => void) => void;
   onContextMenu: (handler: (ev: MouseEvent) => void) => void;
+  onSelectionsChange: (handler: (count: number) => void) => void;
   forceRefresh: () => void;
   dispose: () => void;
 }
