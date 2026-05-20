@@ -262,6 +262,18 @@ export namespace main {
 	        this.assetName = source["assetName"];
 	    }
 	}
+	export class KeymapConfigDTO {
+	    bindings: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new KeymapConfigDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.bindings = source["bindings"];
+	    }
+	}
 	export class ListFolderResult {
 	    path: string;
 	    entries: FolderEntry[];
@@ -300,6 +312,8 @@ export namespace main {
 	    name: string;
 	    path: string;
 	    text: string;
+	    encoding: string;
+	    hasBOM: boolean;
 	    error: string;
 	
 	    static createFrom(source: any = {}) {
@@ -311,6 +325,8 @@ export namespace main {
 	        this.name = source["name"];
 	        this.path = source["path"];
 	        this.text = source["text"];
+	        this.encoding = source["encoding"];
+	        this.hasBOM = source["hasBOM"];
 	        this.error = source["error"];
 	    }
 	}
@@ -557,6 +573,8 @@ export namespace persist {
 	    language?: string;
 	    path?: string;
 	    dirty?: boolean;
+	    encoding?: string;
+	    hasBOM?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new TabSnapshot(source);
@@ -569,6 +587,29 @@ export namespace persist {
 	        this.language = source["language"];
 	        this.path = source["path"];
 	        this.dirty = source["dirty"];
+	        this.encoding = source["encoding"];
+	        this.hasBOM = source["hasBOM"];
+	    }
+	}
+
+}
+
+export namespace textcodec {
+	
+	export class EncodingMeta {
+	    id: string;
+	    label: string;
+	    group: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new EncodingMeta(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.label = source["label"];
+	        this.group = source["group"];
 	    }
 	}
 

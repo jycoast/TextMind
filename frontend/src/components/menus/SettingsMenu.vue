@@ -6,6 +6,7 @@ import ThemeSubmenu from "./ThemeSubmenu.vue";
 
 const emit = defineEmits<{
   (e: "open-ai-settings"): void;
+  (e: "open-shortcuts"): void;
   (e: "check-for-updates"): void;
 }>();
 
@@ -21,6 +22,11 @@ function triggerClick() {
 function openAISettings() {
   menus.closeAllTopMenus();
   emit("open-ai-settings");
+}
+
+function openShortcuts() {
+  menus.closeAllTopMenus();
+  emit("open-shortcuts");
 }
 
 function openCheckForUpdates() {
@@ -83,6 +89,9 @@ function pickTheme(next: "dark" | "light") {
       </div>
       <button class="tm-menu-item" role="menuitem" @click.stop="openAISettings">
         AI 设置
+      </button>
+      <button class="tm-menu-item" role="menuitem" @click.stop="openShortcuts">
+        快捷键设置
       </button>
       <button
         class="tm-menu-item"

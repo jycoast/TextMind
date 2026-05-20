@@ -26,6 +26,8 @@ export async function saveSession(): Promise<void> {
       language: normalizeLanguage(t.language),
       path: t.path || "",
       dirty: Boolean(t.dirty),
+      encoding: t.encoding || "utf-8",
+      hasBOM: Boolean(t.hasBOM),
       ...(t.viewState
         ? { viewState: normalizeViewState(t.viewState) }
         : {}),

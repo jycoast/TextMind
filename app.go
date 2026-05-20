@@ -8,26 +8,27 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"unicode/utf8"
 
 	"tinyEditor/dedupe"
 	"tinyEditor/extract"
 	"tinyEditor/inlist"
 	"tinyEditor/persist"
+	"tinyEditor/textcodec"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type App struct {
-	ctx          context.Context
-	logger       *log.Logger
-	sessionPath  string
-	launchPath   string
-	aiConfigPath string
-	aiConvPath   string
-	aiMu         sync.Mutex
-	aiStreams    streamRegistry
-	version      string
+	ctx              context.Context
+	logger           *log.Logger
+	sessionPath      string
+	launchPath       string
+	aiConfigPath     string
+	aiConvPath       string
+	keymapConfigPath string
+	aiMu             sync.Mutex
+	aiStreams        streamRegistry
+	version          string
 }
 
 type SessionPayload struct {
@@ -52,10 +53,12 @@ type ExtractResult struct {
 }
 
 type OpenFileResult struct {
-	Name  string `json:"name"`
-	Path  string `json:"path"`
-	Text  string `json:"text"`
-	Error string `json:"error"`
+	Name     string `json:"name"`
+	Path     string `json:"path"`
+	Text     string `json:"text"`
+	Encoding string `json:"encoding"`
+	HasBOM   bool   `json:"hasBOM"`
+	Error    string `json:"error"`
 }
 
 type SaveFileResult struct {
@@ -83,11 +86,12 @@ type ListFolderResult struct {
 
 func NewApp(logger *log.Logger, launchPath string) *App {
 	return &App{
-		logger:       logger,
-		sessionPath:  sessionFilePath(logger),
-		aiConfigPath: aiConfigFilePath(logger),
-		aiConvPath:   aiConversationsFilePath(logger),
-		launchPath:   strings.TrimSpace(launchPath),
+		logger:           logger,
+		sessionPath:      sessionFilePath(logger),
+		aiConfigPath:     aiConfigFilePath(logger),
+		aiConvPath:       aiConversationsFilePath(logger),
+		keymapConfigPath: keymapConfigFilePath(logger),
+		launchPath:       strings.TrimSpace(launchPath),
 	}
 }
 
@@ -261,7 +265,7 @@ func (a *App) OpenTextFile() OpenFileResult {
 	if strings.TrimSpace(path) == "" {
 		return OpenFileResult{}
 	}
-	return readTextFile(path)
+	return readTextFile(path, "")
 }
 
 func (a *App) OpenTextFileByPath(path string) OpenFileResult {
@@ -269,7 +273,23 @@ func (a *App) OpenTextFileByPath(path string) OpenFileResult {
 	if path == "" {
 		return OpenFileResult{Error: "文件路径为空"}
 	}
-	return readTextFile(path)
+	return readTextFile(path, "")
+}
+
+// OpenTextFileByPathWithEncoding reopens an existing file using a specific
+// encoding selected by the user (typically from the status-bar dropdown).
+// Passing an empty encoding falls back to auto-detection.
+func (a *App) OpenTextFileByPathWithEncoding(path, encoding string) OpenFileResult {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return OpenFileResult{Error: "文件路径为空"}
+	}
+	return readTextFile(path, encoding)
+}
+
+// ListSupportedEncodings exposes the supported encoding set to the frontend.
+func (a *App) ListSupportedEncodings() []textcodec.EncodingMeta {
+	return textcodec.SupportedEncodings()
 }
 
 func (a *App) OpenFolder() OpenFolderResult {
@@ -339,11 +359,18 @@ func (a *App) ConsumeLaunchPath() string {
 }
 
 func (a *App) SaveTextFile(path, text string) SaveFileResult {
+	return a.SaveTextFileWithEncoding(path, text, "", false)
+}
+
+// SaveTextFileWithEncoding writes text to disk using the given encoding.
+// An empty encoding defaults to UTF-8 without BOM, preserving the previous
+// behavior of SaveTextFile.
+func (a *App) SaveTextFileWithEncoding(path, text, encoding string, withBOM bool) SaveFileResult {
 	path = strings.TrimSpace(path)
 	if path == "" {
 		return SaveFileResult{Error: "保存路径为空"}
 	}
-	if err := saveText(path, text); err != nil {
+	if err := saveText(path, text, encoding, withBOM); err != nil {
 		return SaveFileResult{Error: "保存失败: " + err.Error()}
 	}
 	return SaveFileResult{
@@ -353,6 +380,12 @@ func (a *App) SaveTextFile(path, text string) SaveFileResult {
 }
 
 func (a *App) SaveTextFileAs(defaultName, text string) SaveFileResult {
+	return a.SaveTextFileAsWithEncoding(defaultName, text, "", false)
+}
+
+// SaveTextFileAsWithEncoding opens the system save dialog and writes the
+// resulting file with the chosen encoding/BOM settings.
+func (a *App) SaveTextFileAsWithEncoding(defaultName, text, encoding string, withBOM bool) SaveFileResult {
 	if a.ctx == nil {
 		return SaveFileResult{Error: "应用上下文未初始化"}
 	}
@@ -369,7 +402,7 @@ func (a *App) SaveTextFileAs(defaultName, text string) SaveFileResult {
 	if strings.TrimSpace(path) == "" {
 		return SaveFileResult{}
 	}
-	if err := saveText(path, text); err != nil {
+	if err := saveText(path, text, encoding, withBOM); err != nil {
 		return SaveFileResult{Error: "保存失败: " + err.Error()}
 	}
 	return SaveFileResult{
@@ -378,26 +411,56 @@ func (a *App) SaveTextFileAs(defaultName, text string) SaveFileResult {
 	}
 }
 
-func saveText(path, text string) error {
+func saveText(path, text, encodingID string, withBOM bool) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(path, []byte(text), 0o644)
+	enc := textcodec.EncodingID(strings.TrimSpace(encodingID))
+	if enc == "" {
+		enc = textcodec.EncUTF8
+	}
+	if !textcodec.IsSupported(enc) {
+		return &saveEncodingError{Msg: "不支持的编码: " + string(enc)}
+	}
+	data, err := textcodec.Encode(text, enc, withBOM)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
 }
 
-func readTextFile(path string) OpenFileResult {
+type saveEncodingError struct{ Msg string }
+
+func (e *saveEncodingError) Error() string { return e.Msg }
+
+// readTextFile reads a text file from disk, optionally forcing a specific
+// encoding. When encodingID is empty, the encoding is auto-detected.
+func readTextFile(path, encodingID string) OpenFileResult {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return OpenFileResult{Error: "读取文件失败: " + err.Error()}
 	}
-	if !utf8.Valid(data) {
-		return OpenFileResult{Error: "仅支持 UTF-8 文本文件"}
+
+	var enc textcodec.EncodingID
+	if strings.TrimSpace(encodingID) != "" {
+		enc = textcodec.EncodingID(strings.TrimSpace(encodingID))
+		if !textcodec.IsSupported(enc) {
+			return OpenFileResult{Error: "不支持的编码: " + string(enc)}
+		}
+	} else {
+		enc = textcodec.Detect(data).Encoding
 	}
-	text := strings.TrimPrefix(string(data), "\uFEFF")
+
+	text, hasBOM, err := textcodec.Decode(data, enc)
+	if err != nil {
+		return OpenFileResult{Error: "解码失败 (" + string(enc) + "): " + err.Error()}
+	}
 	return OpenFileResult{
-		Name: filepath.Base(path),
-		Path: path,
-		Text: text,
+		Name:     filepath.Base(path),
+		Path:     path,
+		Text:     text,
+		Encoding: string(enc),
+		HasBOM:   hasBOM,
 	}
 }
 

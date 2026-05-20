@@ -1,7 +1,15 @@
 import * as monaco from "monaco-editor";
-import type { EditorAdapter, MonacoViewState } from "@/types";
+import type {
+  CursorPosition,
+  EditorAdapter,
+  MonacoViewState,
+  SelectionStats,
+} from "@/types";
 import { normalizeLanguage, normalizeViewState } from "@/utils/normalize";
 import { registerJsonElementCountHints } from "@/composables/useJsonInlayHints";
+
+// Shared UTF-8 encoder; constructing it is cheap but reused per call keeps GC quiet.
+const utf8Encoder = new TextEncoder();
 
 // Inlay-hint provider lives on monaco.languages, not on individual
 // editors. Register once at module load so every JSON model picks it up.
@@ -116,10 +124,20 @@ export function createMonacoAdapter(
   host.addEventListener("contextmenu", contextMenuListener);
 
   const selectionsChangeHandlers: Array<(count: number) => void> = [];
+  const cursorChangeHandlers: Array<() => void> = [];
   editor.onDidChangeCursorSelection(() => {
     const selections = editor.getSelections();
     const count = selections ? selections.length : 0;
     selectionsChangeHandlers.forEach((h) => h(count));
+    cursorChangeHandlers.forEach((h) => h());
+  });
+  editor.onDidChangeCursorPosition(() => {
+    cursorChangeHandlers.forEach((h) => h());
+  });
+  // Edits can change cursor coordinates relative to the document even when
+  // the cursor object itself didn't fire (e.g. text inserted before it).
+  editor.onDidChangeModelContent(() => {
+    cursorChangeHandlers.forEach((h) => h());
   });
 
   const adapter: EditorAdapter = {
@@ -241,6 +259,44 @@ export function createMonacoAdapter(
 
     onSelectionsChange: (handler) => {
       selectionsChangeHandlers.push(handler);
+    },
+
+    getCursorPosition: (): CursorPosition => {
+      const pos = editor.getPosition();
+      return {
+        line: pos?.lineNumber || 1,
+        column: pos?.column || 1,
+      };
+    },
+
+    getSelectionStats: (): SelectionStats => {
+      const model = editor.getModel();
+      const selections = editor.getSelections();
+      if (!model || !selections || selections.length === 0) {
+        return { hasSelection: false, lineCount: 0, charCount: 0, byteCount: 0 };
+      }
+      let charCount = 0;
+      let byteCount = 0;
+      let lineCount = 0;
+      let hasSelection = false;
+      for (const sel of selections) {
+        if (sel.isEmpty()) continue;
+        hasSelection = true;
+        const text = model.getValueInRange(sel);
+        charCount += text.length;
+        byteCount += utf8Encoder.encode(text).byteLength;
+        const spanned =
+          Math.abs(sel.endLineNumber - sel.startLineNumber) + 1;
+        lineCount += spanned;
+      }
+      if (!hasSelection) {
+        return { hasSelection: false, lineCount: 0, charCount: 0, byteCount: 0 };
+      }
+      return { hasSelection: true, lineCount, charCount, byteCount };
+    },
+
+    onCursorChange: (handler) => {
+      cursorChangeHandlers.push(handler);
     },
 
     setColumnMode: (enabled) => applyColumnMode(enabled),

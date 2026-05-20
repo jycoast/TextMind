@@ -1,5 +1,5 @@
 import * as App from "@wails/go/main/App";
-import type { extract, main, persist } from "@wails/go/models";
+import type { extract, main, persist, textcodec } from "@wails/go/models";
 
 export const backend = {
   loadSession: (): Promise<main.SessionPayload> => App.LoadSession(),
@@ -29,12 +29,33 @@ export const backend = {
   openTextFile: (): Promise<main.OpenFileResult> => App.OpenTextFile(),
   openTextFileByPath: (path: string): Promise<main.OpenFileResult> =>
     App.OpenTextFileByPath(path),
+  openTextFileByPathWithEncoding: (
+    path: string,
+    encoding: string,
+  ): Promise<main.OpenFileResult> =>
+    App.OpenTextFileByPathWithEncoding(path, encoding),
   saveTextFile: (path: string, text: string): Promise<main.SaveFileResult> =>
     App.SaveTextFile(path, text),
+  saveTextFileWithEncoding: (
+    path: string,
+    text: string,
+    encoding: string,
+    withBOM: boolean,
+  ): Promise<main.SaveFileResult> =>
+    App.SaveTextFileWithEncoding(path, text, encoding, withBOM),
   saveTextFileAs: (
     defaultName: string,
     text: string,
   ): Promise<main.SaveFileResult> => App.SaveTextFileAs(defaultName, text),
+  saveTextFileAsWithEncoding: (
+    defaultName: string,
+    text: string,
+    encoding: string,
+    withBOM: boolean,
+  ): Promise<main.SaveFileResult> =>
+    App.SaveTextFileAsWithEncoding(defaultName, text, encoding, withBOM),
+  listSupportedEncodings: (): Promise<textcodec.EncodingMeta[]> =>
+    App.ListSupportedEncodings(),
 
   openFolder: (): Promise<main.OpenFolderResult> => App.OpenFolder(),
   listFolder: (path: string): Promise<main.ListFolderResult> =>
@@ -50,6 +71,10 @@ export const backend = {
   getAIConfig: (): Promise<main.AIConfigDTO> => App.GetAIConfig(),
   saveAIConfig: (cfg: main.AIConfigDTO): Promise<main.SimpleResult> =>
     App.SaveAIConfig(cfg),
+  getKeymapConfig: (): Promise<main.KeymapConfigDTO> => App.GetKeymapConfig(),
+  saveKeymapConfig: (
+    cfg: main.KeymapConfigDTO,
+  ): Promise<main.SimpleResult> => App.SaveKeymapConfig(cfg),
   testAIConnection: (cfg: main.AIConfigDTO): Promise<main.SimpleResult> =>
     App.TestAIConnection(cfg),
   fetchAIModels: (cfg: main.AIConfigDTO): Promise<main.FetchModelsResult> =>

@@ -6,6 +6,7 @@ import RecentFilesSubmenu from "./RecentFilesSubmenu.vue";
 
 const emit = defineEmits<{
   (e: "save"): void;
+  (e: "saveAs"): void;
   (e: "openFile"): void;
   (e: "openFolder"): void;
   (e: "openRecent", path: string): void;
@@ -27,8 +28,9 @@ function onHoverRecent() {
   menus.openSubMenu("recent");
 }
 
-function click(action: "save" | "open" | "openFolder") {
+function click(action: "save" | "saveAs" | "open" | "openFolder") {
   if (action === "save") emit("save");
+  else if (action === "saveAs") emit("saveAs");
   else if (action === "open") emit("openFile");
   else if (action === "openFolder") emit("openFolder");
   menus.closeAllTopMenus();
@@ -60,6 +62,9 @@ function click(action: "save" | "open" | "openFolder") {
     >
       <button class="tm-menu-item" role="menuitem" @click="click('save')">
         保存
+      </button>
+      <button class="tm-menu-item" role="menuitem" @click="click('saveAs')">
+        另存为...
       </button>
       <button class="tm-menu-item" role="menuitem" @click="click('open')">
         打开文件...

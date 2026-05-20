@@ -7,6 +7,7 @@ import { useAIPanelStore } from "@/stores/aiPanel";
 
 defineEmits<{
   (e: "save"): void;
+  (e: "saveAs"): void;
   (e: "openFile"): void;
   (e: "openFolder"): void;
   (e: "openRecent", path: string): void;
@@ -14,6 +15,7 @@ defineEmits<{
   (e: "toggle-column"): void;
   (e: "detect-language"): void;
   (e: "open-ai-settings"): void;
+  (e: "open-shortcuts"): void;
   (e: "toggle-ai-panel"): void;
   (e: "check-for-updates"): void;
 }>();
@@ -30,6 +32,7 @@ const { visible: aiPanelVisible } = storeToRefs(aiPanel);
     >
       <FileMenu
         @save="$emit('save')"
+        @save-as="$emit('saveAs')"
         @open-file="$emit('openFile')"
         @open-folder="$emit('openFolder')"
         @open-recent="(p) => $emit('openRecent', p)"
@@ -41,6 +44,7 @@ const { visible: aiPanelVisible } = storeToRefs(aiPanel);
       />
       <SettingsMenu
         @open-ai-settings="$emit('open-ai-settings')"
+        @open-shortcuts="$emit('open-shortcuts')"
         @check-for-updates="$emit('check-for-updates')"
       />
       <span class="ml-auto flex items-center pr-1">

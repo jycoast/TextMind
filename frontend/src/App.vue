@@ -14,6 +14,8 @@ import ExtractModal from "@/components/ExtractModal.vue";
 import AIChatPanel from "@/components/AIChatPanel.vue";
 import AIPanelSplitter from "@/components/AIPanelSplitter.vue";
 import AISettingsModal from "@/components/AISettingsModal.vue";
+import ShortcutsModal from "@/components/ShortcutsModal.vue";
+import SaveAsEncodingModal from "@/components/SaveAsEncodingModal.vue";
 import UpdateModal from "@/components/UpdateModal.vue";
 import { useTabsStore } from "@/stores/tabs";
 import { useMenusStore } from "@/stores/menus";
@@ -32,6 +34,7 @@ import {
   loadSessionIntoStores,
 } from "@/composables/useSession";
 import { useKeyboardShortcuts } from "@/composables/useKeyboardShortcuts";
+import { useShortcutsStore } from "@/stores/shortcuts";
 import { tryFormatJson, tryMinifyJson } from "@/composables/useJsonFormat";
 
 const tabs = useTabsStore();
@@ -43,6 +46,7 @@ const aiPanel = useAIPanelStore();
 const aiConfig = useAIConfigStore();
 const aiChat = useAIChatStore();
 const updateStore = useUpdateStore();
+const shortcutsStore = useShortcutsStore();
 const { tabs: tabList } = storeToRefs(tabs);
 
 const templateVisible = ref(false);
@@ -52,6 +56,10 @@ const extractVisible = ref(false);
 const extractSource = ref("");
 
 const aiSettingsVisible = ref(false);
+
+const shortcutsVisible = ref(false);
+
+const saveAsVisible = ref(false);
 
 const updateModalVisible = ref(false);
 
@@ -112,6 +120,15 @@ function showAISettings() {
 
 function hideAISettings() {
   aiSettingsVisible.value = false;
+}
+
+function showShortcuts() {
+  menus.closeEverything();
+  shortcutsVisible.value = true;
+}
+
+function hideShortcuts() {
+  shortcutsVisible.value = false;
 }
 
 function showUpdateModal() {
@@ -213,6 +230,28 @@ async function onOpenFileByPath(path: string) {
 async function onSaveCurrent() {
   menus.closeAllTopMenus();
   const r = await tabs.saveCurrent();
+  if (r.error) {
+    ui.showTip(r.error);
+    return;
+  }
+  if (r.ok) ui.showTip(`已保存 ${r.name || ""}`);
+}
+
+function onSaveAs() {
+  menus.closeAllTopMenus();
+  if (!tabs.current) {
+    ui.showTip("没有可保存的标签页");
+    return;
+  }
+  saveAsVisible.value = true;
+}
+
+async function onSaveAsConfirm(payload: {
+  encoding: string;
+  withBOM: boolean;
+}) {
+  saveAsVisible.value = false;
+  const r = await tabs.saveCurrentAs(payload.encoding, payload.withBOM);
   if (r.error) {
     ui.showTip(r.error);
     return;
@@ -356,11 +395,28 @@ function onAppClick(ev: MouseEvent) {
 }
 
 useKeyboardShortcuts({
-  onSave: () => void onSaveCurrent(),
-  onOpenTemplate: showTemplate,
-  onToggleColumnMode: onToggleColumn,
-  onToggleAIPanel: toggleAIPanel,
+  handlers: {
+    "file.save": () => void onSaveCurrent(),
+    "file.openFile": () => void onOpenFile(),
+    "file.openFolder": () => void onOpenFolder(),
+    "edit.toggleColumn": onToggleColumn,
+    "edit.templateSql": showTemplate,
+    "edit.detectLanguage": onDetectLanguage,
+    "text.extract": showExtract,
+    "text.dedupe": () => void onContextAction("dedupe"),
+    "text.singleton": () => void onContextAction("singleton"),
+    "text.duplicates": () => void onContextAction("duplicates"),
+    "text.inlist": () => void onContextAction("inlist"),
+    "json.format": onFormatJson,
+    "json.minify": onMinifyJson,
+    "ai.insertSelection": insertSelectionToAIChat,
+    "ai.togglePanel": toggleAIPanel,
+  },
   onEscape: () => {
+    if (shortcutsVisible.value) {
+      hideShortcuts();
+      return;
+    }
     if (updateModalVisible.value) {
       hideUpdateModal();
       return;
@@ -389,6 +445,7 @@ async function openLaunchFileIfAny() {
 
 onMounted(async () => {
   await loadSessionIntoStores();
+  await shortcutsStore.loadFromBackend();
   if (workspace.root) {
     await workspace.setRoot(workspace.root);
   }
@@ -406,6 +463,7 @@ onMounted(async () => {
   <TopBar
     data-menu-root
     @save="onSaveCurrent"
+    @save-as="onSaveAs"
     @open-file="onOpenFile"
     @open-folder="onOpenFolder"
     @open-recent="(p: string) => onOpenFileByPath(p)"
@@ -413,6 +471,7 @@ onMounted(async () => {
     @toggle-column="onToggleColumn"
     @detect-language="onDetectLanguage"
     @open-ai-settings="showAISettings"
+    @open-shortcuts="showShortcuts"
     @toggle-ai-panel="toggleAIPanel"
     @check-for-updates="showUpdateModal"
   />
@@ -444,6 +503,14 @@ onMounted(async () => {
     @new-tab="onExtractNewTab"
   />
   <AISettingsModal :visible="aiSettingsVisible" @close="hideAISettings" />
+  <ShortcutsModal :visible="shortcutsVisible" @close="hideShortcuts" />
+  <SaveAsEncodingModal
+    :visible="saveAsVisible"
+    :initialEncoding="tabs.current?.encoding"
+    :initialHasBOM="tabs.current?.hasBOM"
+    @close="saveAsVisible = false"
+    @confirm="onSaveAsConfirm"
+  />
   <UpdateModal :visible="updateModalVisible" @close="hideUpdateModal" />
   <div class="sr-only">{{ tabList.length }}</div>
 </template>

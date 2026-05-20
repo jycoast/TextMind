@@ -22,6 +22,8 @@ type TabSnapshot struct {
 	Language string `json:"language,omitempty"`
 	Path     string `json:"path,omitempty"`
 	Dirty    bool   `json:"dirty,omitempty"`
+	Encoding string `json:"encoding,omitempty"`
+	HasBOM   bool   `json:"hasBOM,omitempty"`
 }
 
 // RecentFile is recently opened file metadata.

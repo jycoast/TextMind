@@ -27,6 +27,8 @@ function newTabObject(
     path: "",
     viewState: null,
     dirty: false,
+    encoding: "utf-8",
+    hasBOM: false,
   };
 }
 
@@ -34,6 +36,8 @@ export interface OpenFileResultLike {
   name?: string;
   path?: string;
   text?: string;
+  encoding?: string;
+  hasBOM?: boolean;
   error?: string;
 }
 
@@ -271,6 +275,8 @@ export const useTabsStore = defineStore("tabs", () => {
           tab.path = res.path || tab.path;
           tab.viewState = null;
           tab.dirty = false;
+          tab.encoding = res.encoding || tab.encoding || "utf-8";
+          tab.hasBOM = Boolean(res.hasBOM);
           selectedIndex.value = existingIndex;
           renderCurrentIntoEditor();
           return { opened: true, existed: true, reloaded: true };
@@ -297,6 +303,8 @@ export const useTabsStore = defineStore("tabs", () => {
       first.path = res.path || "";
       first.viewState = null;
       first.dirty = false;
+      first.encoding = res.encoding || "utf-8";
+      first.hasBOM = Boolean(res.hasBOM);
       selectedIndex.value = 0;
       renderCurrentIntoEditor();
       return { opened: true, existed: false };
@@ -306,11 +314,46 @@ export const useTabsStore = defineStore("tabs", () => {
     persistCurrentViewState();
     const tab = newTabObject(res.name || "未命名", res.text || "", lang);
     tab.path = res.path || "";
+    tab.encoding = res.encoding || "utf-8";
+    tab.hasBOM = Boolean(res.hasBOM);
     nextTabSeq.value += 1;
     tabs.value.push(tab);
     selectedIndex.value = tabs.value.length - 1;
     renderCurrentIntoEditor();
     return { opened: true, existed: false };
+  }
+
+  async function reopenCurrentWithEncoding(encoding: string): Promise<{
+    ok: boolean;
+    error?: string;
+  }> {
+    const tab = current.value;
+    if (!tab) return { ok: false, error: "没有活动的标签页" };
+    if (!tab.path) {
+      return { ok: false, error: "未保存的文件无法切换编码" };
+    }
+    const target = String(encoding || "").trim();
+    if (!target) return { ok: false, error: "请选择目标编码" };
+
+    if (tab.dirty) {
+      const ok = window.confirm(
+        `${tab.title || "该文件"} 有未保存修改。\n以新编码重新打开会丢弃这些修改，是否继续？`,
+      );
+      if (!ok) return { ok: false };
+    }
+
+    const res = await backend.openTextFileByPathWithEncoding(tab.path, target);
+    if (!res) return { ok: false, error: "无返回结果" };
+    if (res.error) return { ok: false, error: res.error };
+
+    persistCurrentViewState();
+    tab.text = res.text || "";
+    tab.encoding = res.encoding || target;
+    tab.hasBOM = Boolean(res.hasBOM);
+    tab.viewState = null;
+    tab.dirty = false;
+    renderCurrentIntoEditor();
+    return { ok: true };
   }
 
   async function saveCurrent(): Promise<{
@@ -321,24 +364,50 @@ export const useTabsStore = defineStore("tabs", () => {
     persistCurrentText();
     const tab = current.value;
     if (!tab) return { ok: false };
+    const enc = tab.encoding || "utf-8";
+    const withBOM = Boolean(tab.hasBOM);
     if (tab.path) {
-      const res = await backend.saveTextFile(tab.path, tab.text || "");
+      const res = await backend.saveTextFileWithEncoding(
+        tab.path,
+        tab.text || "",
+        enc,
+        withBOM,
+      );
       if (!res) return { ok: false };
       if (res.error) return { ok: false, error: res.error };
       tab.dirty = false;
       return { ok: true, name: res.name || tab.title };
     }
+    return saveCurrentAs(enc, withBOM);
+  }
+
+  async function saveCurrentAs(
+    encoding?: string,
+    withBOM?: boolean,
+  ): Promise<{ ok: boolean; name?: string; error?: string }> {
+    persistCurrentText();
+    const tab = current.value;
+    if (!tab) return { ok: false };
+    const enc = encoding || tab.encoding || "utf-8";
+    const bom = withBOM ?? Boolean(tab.hasBOM);
     const defaultName =
       tab.title && !tab.title.startsWith("未命名")
         ? tab.title
         : "untitled.txt";
-    const res = await backend.saveTextFileAs(defaultName, tab.text || "");
+    const res = await backend.saveTextFileAsWithEncoding(
+      defaultName,
+      tab.text || "",
+      enc,
+      bom,
+    );
     if (!res) return { ok: false };
     if (res.error) return { ok: false, error: res.error };
     if (!res.path) return { ok: false };
     tab.path = res.path;
     if (res.name) tab.title = res.name;
     tab.language = guessLanguage(res.name || res.path, tab.text || "");
+    tab.encoding = enc;
+    tab.hasBOM = bom;
     tab.dirty = false;
     renderCurrentIntoEditor();
 
@@ -360,6 +429,8 @@ export const useTabsStore = defineStore("tabs", () => {
       path?: string;
       dirty?: boolean;
       viewState?: MonacoViewState | null;
+      encoding?: string;
+      hasBOM?: boolean;
     }>;
   }): void {
     const list = payload.tabs ?? [];
@@ -373,6 +444,8 @@ export const useTabsStore = defineStore("tabs", () => {
         path: t.path || "",
         viewState: normalizeViewState(t.viewState),
         dirty: Boolean(t.dirty),
+        encoding: t.encoding || "utf-8",
+        hasBOM: Boolean(t.hasBOM),
       }));
       selectedIndex.value = Math.max(
         0,
@@ -448,7 +521,9 @@ export const useTabsStore = defineStore("tabs", () => {
     replaceSelection,
     getSelectionText,
     openFileResultToTab,
+    reopenCurrentWithEncoding,
     saveCurrent,
+    saveCurrentAs,
     restoreFromSession,
     markDirty,
     detectAndApplyCurrentLanguage,

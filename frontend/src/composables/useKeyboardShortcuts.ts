@@ -1,45 +1,51 @@
 import { onBeforeUnmount, onMounted } from "vue";
+import { useShortcutsStore } from "@/stores/shortcuts";
+import {
+  ALL_ACTION_IDS,
+  matchesCombo,
+  parseCombo,
+  type ActionId,
+} from "./shortcutModel";
 
-export interface ShortcutHandlers {
-  onSave: () => void;
-  onOpenTemplate: () => void;
-  onToggleColumnMode: () => void;
-  onToggleAIPanel?: () => void;
+export interface ShortcutOptions {
+  /**
+   * Map from ActionId to the handler invoked when its bound combo fires.
+   * Missing entries mean the action exists but is not currently wired (e.g.
+   * the file menu's "open file" can be unbound by default and still appear
+   * in the settings modal).
+   */
+  handlers: Partial<Record<ActionId, () => void>>;
+  /** Always-on Escape handler; intentionally not user-customizable. */
   onEscape: () => void;
 }
 
-export function useKeyboardShortcuts(handlers: ShortcutHandlers): void {
+/**
+ * Install the global keyboard listener. Bindings are read live from the
+ * shortcuts pinia store, so any in-place edits via the settings modal take
+ * effect immediately without remounting.
+ */
+export function useKeyboardShortcuts(options: ShortcutOptions): void {
+  const shortcutsStore = useShortcutsStore();
+
   const listener = (ev: KeyboardEvent) => {
     if (ev.key === "Escape") {
-      handlers.onEscape();
+      options.onEscape();
       return;
     }
-    const key = ev.key.toLowerCase();
-    if (ev.ctrlKey && !ev.altKey && !ev.shiftKey && !ev.metaKey && key === "s") {
+    if (ev.isComposing || ev.keyCode === 229) return;
+
+    const bindings = shortcutsStore.bindings;
+    for (const id of ALL_ACTION_IDS) {
+      const comboText = bindings[id];
+      if (!comboText) continue;
+      const combo = parseCombo(comboText);
+      if (!combo) continue;
+      if (!matchesCombo(ev, combo)) continue;
+      const handler = options.handlers[id];
+      if (!handler) return;
       ev.preventDefault();
-      handlers.onSave();
+      handler();
       return;
-    }
-    if (ev.ctrlKey && !ev.altKey && ev.shiftKey && !ev.metaKey && key === "g") {
-      ev.preventDefault();
-      handlers.onOpenTemplate();
-      return;
-    }
-    if (ev.ctrlKey && ev.altKey && !ev.shiftKey && !ev.metaKey && key === "l") {
-      ev.preventDefault();
-      handlers.onToggleColumnMode();
-      return;
-    }
-    if (
-      ev.ctrlKey &&
-      !ev.altKey &&
-      !ev.shiftKey &&
-      !ev.metaKey &&
-      key === "l" &&
-      handlers.onToggleAIPanel
-    ) {
-      ev.preventDefault();
-      handlers.onToggleAIPanel();
     }
   };
 

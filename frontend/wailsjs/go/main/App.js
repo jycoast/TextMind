@@ -54,6 +54,10 @@ export function GetConversation(arg1) {
   return window['go']['main']['App']['GetConversation'](arg1);
 }
 
+export function GetKeymapConfig() {
+  return window['go']['main']['App']['GetKeymapConfig']();
+}
+
 export function KeepDuplicateSelected(arg1) {
   return window['go']['main']['App']['KeepDuplicateSelected'](arg1);
 }
@@ -68,6 +72,10 @@ export function ListConversations() {
 
 export function ListFolder(arg1) {
   return window['go']['main']['App']['ListFolder'](arg1);
+}
+
+export function ListSupportedEncodings() {
+  return window['go']['main']['App']['ListSupportedEncodings']();
 }
 
 export function LoadSession() {
@@ -102,12 +110,20 @@ export function OpenTextFileByPath(arg1) {
   return window['go']['main']['App']['OpenTextFileByPath'](arg1);
 }
 
+export function OpenTextFileByPathWithEncoding(arg1, arg2) {
+  return window['go']['main']['App']['OpenTextFileByPathWithEncoding'](arg1, arg2);
+}
+
 export function RenameConversation(arg1, arg2) {
   return window['go']['main']['App']['RenameConversation'](arg1, arg2);
 }
 
 export function SaveAIConfig(arg1) {
   return window['go']['main']['App']['SaveAIConfig'](arg1);
+}
+
+export function SaveKeymapConfig(arg1) {
+  return window['go']['main']['App']['SaveKeymapConfig'](arg1);
 }
 
 export function SaveSession(arg1) {
@@ -120,6 +136,14 @@ export function SaveTextFile(arg1, arg2) {
 
 export function SaveTextFileAs(arg1, arg2) {
   return window['go']['main']['App']['SaveTextFileAs'](arg1, arg2);
+}
+
+export function SaveTextFileAsWithEncoding(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['SaveTextFileAsWithEncoding'](arg1, arg2, arg3, arg4);
+}
+
+export function SaveTextFileWithEncoding(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['SaveTextFileWithEncoding'](arg1, arg2, arg3, arg4);
 }
 
 export function SelectConversation(arg1) {

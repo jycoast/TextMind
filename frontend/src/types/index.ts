@@ -19,6 +19,14 @@ export interface Tab {
   path: string;
   viewState: MonacoViewState | null;
   dirty: boolean;
+  encoding: string;
+  hasBOM: boolean;
+}
+
+export interface EncodingMeta {
+  id: string;
+  label: string;
+  group: string;
 }
 
 export interface RecentFile {
@@ -53,6 +61,18 @@ export interface TabContextState {
 
 export type EditorAdapterMode = "monaco" | "textarea";
 
+export interface CursorPosition {
+  line: number;
+  column: number;
+}
+
+export interface SelectionStats {
+  hasSelection: boolean;
+  lineCount: number;
+  charCount: number;
+  byteCount: number;
+}
+
 export interface EditorAdapter {
   mode: EditorAdapterMode;
   supportsColumnMode: boolean;
@@ -69,6 +89,9 @@ export interface EditorAdapter {
   onChange: (handler: () => void) => void;
   onContextMenu: (handler: (ev: MouseEvent) => void) => void;
   onSelectionsChange: (handler: (count: number) => void) => void;
+  getCursorPosition: () => CursorPosition;
+  getSelectionStats: () => SelectionStats;
+  onCursorChange: (handler: () => void) => void;
   forceRefresh: () => void;
   dispose: () => void;
 }
