@@ -220,7 +220,9 @@ async function onSaveCurrent() {
   if (r.ok) ui.showTip(`已保存 ${r.name || ""}`);
 }
 
-async function onContextAction(action: "dedupe" | "singleton" | "inlist") {
+async function onContextAction(
+  action: "dedupe" | "singleton" | "duplicates" | "inlist",
+) {
   const selected = tabs.getSelectionText();
   if (!selected.trim()) return;
   if (action === "dedupe") {
@@ -236,6 +238,11 @@ async function onContextAction(action: "dedupe" | "singleton" | "inlist") {
   }
   if (action === "singleton") {
     const res = await backend.keepSingletonSelected(selected);
+    if (res?.text != null) tabs.replaceSelection(res.text);
+    return;
+  }
+  if (action === "duplicates") {
+    const res = await backend.keepDuplicateSelected(selected);
     if (res?.text != null) tabs.replaceSelection(res.text);
     return;
   }
@@ -300,6 +307,7 @@ function onEditorMenuAction(
     | "extract"
     | "dedupe"
     | "singleton"
+    | "duplicates"
     | "inlist"
     | "format-json"
     | "minify-json"
@@ -401,14 +409,8 @@ onMounted(async () => {
     @open-file="onOpenFile"
     @open-folder="onOpenFolder"
     @open-recent="(p: string) => onOpenFileByPath(p)"
-    @extract="showExtract"
-    @dedupe="onContextAction('dedupe')"
-    @singleton="onContextAction('singleton')"
-    @inlist="onContextAction('inlist')"
     @template-sql="showTemplate"
     @toggle-column="onToggleColumn"
-    @format-json="onFormatJson"
-    @minify-json="onMinifyJson"
     @detect-language="onDetectLanguage"
     @open-ai-settings="showAISettings"
     @toggle-ai-panel="toggleAIPanel"

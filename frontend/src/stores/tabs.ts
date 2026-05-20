@@ -174,6 +174,35 @@ export const useTabsStore = defineStore("tabs", () => {
     ensureTabsAndRender([tabs.value[i]], 0);
   }
 
+  function moveTab(from: number, to: number): boolean {
+    const len = tabs.value.length;
+    if (from < 0 || from >= len) return false;
+    let dest = to;
+    if (dest < 0) dest = 0;
+    if (dest > len - 1) dest = len - 1;
+    if (dest === from) return false;
+
+    persistCurrentText();
+    persistCurrentViewState();
+
+    const next = tabs.value.slice();
+    const [item] = next.splice(from, 1);
+    next.splice(dest, 0, item);
+
+    let sel = selectedIndex.value;
+    if (sel === from) {
+      sel = dest;
+    } else if (from < sel && dest >= sel) {
+      sel -= 1;
+    } else if (from > sel && dest <= sel) {
+      sel += 1;
+    }
+
+    tabs.value = next;
+    selectedIndex.value = sel;
+    return true;
+  }
+
   function addNewTab(): void {
     persistCurrentText();
     const tab = newTabObject();
@@ -411,6 +440,7 @@ export const useTabsStore = defineStore("tabs", () => {
     closeRight,
     closeLeft,
     closeOthers,
+    moveTab,
     addNewTab,
     addTabFromText,
     setColumnMode,

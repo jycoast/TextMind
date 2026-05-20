@@ -76,3 +76,37 @@ func OnlySingletonLines(input string) (result string, removed int) {
 	removed = len(items) - len(out)
 	return strings.Join(out, "\n"), removed
 }
+
+// OnlyDuplicateLines keeps only lines whose trimmed value appears more than once
+// in the input, returning each duplicated value once in first-seen order.
+// removed is the number of non-empty input lines that did not survive (i.e.
+// singletons removed plus extra occurrences of duplicates collapsed into one).
+func OnlyDuplicateLines(input string) (result string, removed int) {
+	lines := strings.Split(input, "\n")
+	items := make([]string, 0, len(lines))
+	for _, line := range lines {
+		item := strings.TrimSpace(line)
+		if item == "" {
+			continue
+		}
+		items = append(items, item)
+	}
+	counts := make(map[string]int, len(items))
+	for _, item := range items {
+		counts[item]++
+	}
+	seen := make(map[string]struct{}, len(items))
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		if counts[item] < 2 {
+			continue
+		}
+		if _, exists := seen[item]; exists {
+			continue
+		}
+		seen[item] = struct{}{}
+		out = append(out, item)
+	}
+	removed = len(items) - len(out)
+	return strings.Join(out, "\n"), removed
+}

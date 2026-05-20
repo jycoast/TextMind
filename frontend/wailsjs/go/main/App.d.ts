@@ -29,6 +29,8 @@ export function GetAppVersion():Promise<string>;
 
 export function GetConversation(arg1:string):Promise<main.ConversationDTO>;
 
+export function KeepDuplicateSelected(arg1:string):Promise<main.ToolResult>;
+
 export function KeepSingletonSelected(arg1:string):Promise<main.ToolResult>;
 
 export function ListConversations():Promise<main.ConversationListDTO>;

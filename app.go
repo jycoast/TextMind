@@ -191,6 +191,15 @@ func (a *App) KeepSingletonSelected(selected string) ToolResult {
 	return ToolResult{Text: result, Removed: removed}
 }
 
+func (a *App) KeepDuplicateSelected(selected string) ToolResult {
+	selected = strings.TrimSpace(selected)
+	if selected == "" {
+		return ToolResult{}
+	}
+	result, removed := dedupe.OnlyDuplicateLines(selected)
+	return ToolResult{Text: result, Removed: removed}
+}
+
 func (a *App) ToInListSelected(selected string) ToolResult {
 	selected = strings.TrimSpace(selected)
 	if selected == "" {

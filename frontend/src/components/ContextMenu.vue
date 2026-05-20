@@ -6,6 +6,7 @@ export type EditorContextAction =
   | "extract"
   | "dedupe"
   | "singleton"
+  | "duplicates"
   | "inlist"
   | "format-json"
   | "minify-json"
@@ -37,9 +38,12 @@ function handle(action: EditorContextAction) {
     <button @click="handle('extract')">提取文本</button>
     <button @click="handle('dedupe')">去重</button>
     <button @click="handle('singleton')">保留单次出现项</button>
+    <button @click="handle('duplicates')">保留重复项</button>
     <button @click="handle('inlist')">转IN列表</button>
+    <div class="tm-context-menu__separator" role="separator" />
     <button @click="handle('format-json')">格式化 JSON</button>
     <button @click="handle('minify-json')">压缩 JSON</button>
+    <div class="tm-context-menu__separator" role="separator" />
     <button @click="handle('ai-insert-input')">插入到 AI 对话框</button>
   </div>
 </template>

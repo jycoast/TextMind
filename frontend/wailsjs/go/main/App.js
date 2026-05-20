@@ -54,6 +54,10 @@ export function GetConversation(arg1) {
   return window['go']['main']['App']['GetConversation'](arg1);
 }
 
+export function KeepDuplicateSelected(arg1) {
+  return window['go']['main']['App']['KeepDuplicateSelected'](arg1);
+}
+
 export function KeepSingletonSelected(arg1) {
   return window['go']['main']['App']['KeepSingletonSelected'](arg1);
 }

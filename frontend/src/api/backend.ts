@@ -16,6 +16,8 @@ export const backend = {
     App.DedupeSelected(text),
   keepSingletonSelected: (text: string): Promise<main.ToolResult> =>
     App.KeepSingletonSelected(text),
+  keepDuplicateSelected: (text: string): Promise<main.ToolResult> =>
+    App.KeepDuplicateSelected(text),
   toInListSelected: (text: string): Promise<main.ToolResult> =>
     App.ToInListSelected(text),
 

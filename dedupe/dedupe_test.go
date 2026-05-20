@@ -69,3 +69,47 @@ func TestOnlySingletonLines(t *testing.T) {
 		}
 	})
 }
+
+func TestOnlyDuplicateLines(t *testing.T) {
+	t.Run("keeps only repeated values in first-seen order", func(t *testing.T) {
+		input := "a\nb\na\nc\nb"
+		wantResult := "a\nb"
+		wantRemoved := 3
+
+		gotResult, gotRemoved := OnlyDuplicateLines(input)
+		if gotResult != wantResult {
+			t.Fatalf("OnlyDuplicateLines() result = %q, want %q", gotResult, wantResult)
+		}
+		if gotRemoved != wantRemoved {
+			t.Fatalf("OnlyDuplicateLines() removed = %d, want %d", gotRemoved, wantRemoved)
+		}
+	})
+
+	t.Run("drops all when every line is unique", func(t *testing.T) {
+		input := "1\n2\n3"
+		wantResult := ""
+		wantRemoved := 3
+
+		gotResult, gotRemoved := OnlyDuplicateLines(input)
+		if gotResult != wantResult {
+			t.Fatalf("OnlyDuplicateLines() result = %q, want %q", gotResult, wantResult)
+		}
+		if gotRemoved != wantRemoved {
+			t.Fatalf("OnlyDuplicateLines() removed = %d, want %d", gotRemoved, wantRemoved)
+		}
+	})
+
+	t.Run("collapses repeated duplicates to a single entry", func(t *testing.T) {
+		input := "a\na\na"
+		wantResult := "a"
+		wantRemoved := 2
+
+		gotResult, gotRemoved := OnlyDuplicateLines(input)
+		if gotResult != wantResult {
+			t.Fatalf("OnlyDuplicateLines() result = %q, want %q", gotResult, wantResult)
+		}
+		if gotRemoved != wantRemoved {
+			t.Fatalf("OnlyDuplicateLines() removed = %d, want %d", gotRemoved, wantRemoved)
+		}
+	})
+}

@@ -148,6 +148,12 @@ body.is-resizing {
   background: var(--hover-bg);
 }
 
+.tm-context-menu__separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--hairline);
+}
+
 .tm-input {
   width: 100%;
   min-height: 130px;
