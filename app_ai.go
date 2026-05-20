@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"tinyEditor/ai"
-	"tinyEditor/persist"
+	"TextMind/ai"
+	"TextMind/persist"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )

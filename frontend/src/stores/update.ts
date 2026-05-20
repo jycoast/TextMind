@@ -24,7 +24,7 @@ export type UpdateStatus =
   | "applying"
   | "error";
 
-const LAST_CHECK_KEY = "tinyEditor.updateLastCheckMs";
+const LAST_CHECK_KEY = "TextMind.updateLastCheckMs";
 const PROGRESS_EVENT = "update:progress";
 
 interface ProgressPayload {

@@ -39,7 +39,7 @@ func DefaultPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "tinyEditor", "session.json"), nil
+	return filepath.Join(dir, "TextMind", "session.json"), nil
 }
 
 // Load reads session from path. If the file is missing or invalid, returns (nil, nil).

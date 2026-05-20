@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"tinyEditor/persist"
+	"TextMind/persist"
 )
 
 // KeymapConfigDTO is the wails-bound shape of the keymap configuration.
@@ -17,7 +17,7 @@ func keymapConfigFilePath(logger *log.Logger) string {
 	p, err := persist.KeymapConfigPath()
 	if err != nil {
 		logger.Printf("user config dir unavailable, using local keymap.json: %v", err)
-		return "tinyEditor-keymap.json"
+		return "TextMind-keymap.json"
 	}
 	return p
 }

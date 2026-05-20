@@ -26,7 +26,7 @@ func KeymapConfigPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "tinyEditor", "keymap.json"), nil
+	return filepath.Join(dir, "TextMind", "keymap.json"), nil
 }
 
 // LoadKeymapConfig reads the config from path. Missing or unreadable files
@@ -54,7 +54,7 @@ func LoadKeymapConfig(path string) (KeymapConfig, error) {
 }
 
 // SaveKeymapConfig writes the config atomically. The file contains no secrets
-// but we still keep it under the same tinyEditor config tree.
+// but we still keep it under the same TextMind config tree.
 func SaveKeymapConfig(path string, cfg KeymapConfig) error {
 	if path == "" {
 		return errors.New("persist: empty keymap config path")

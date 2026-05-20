@@ -9,11 +9,11 @@ import (
 	"strings"
 	"sync"
 
-	"tinyEditor/dedupe"
-	"tinyEditor/extract"
-	"tinyEditor/inlist"
-	"tinyEditor/persist"
-	"tinyEditor/textcodec"
+	"TextMind/dedupe"
+	"TextMind/extract"
+	"TextMind/inlist"
+	"TextMind/persist"
+	"TextMind/textcodec"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -118,7 +118,7 @@ func sessionFilePath(logger *log.Logger) string {
 	p, err := persist.DefaultPath()
 	if err != nil {
 		logger.Printf("user config dir unavailable, using local session.json: %v", err)
-		return "tinyEditor-session.json"
+		return "TextMind-session.json"
 	}
 	return p
 }
@@ -127,7 +127,7 @@ func aiConfigFilePath(logger *log.Logger) string {
 	p, err := persist.AIConfigPath()
 	if err != nil {
 		logger.Printf("user config dir unavailable, using local ai-config.json: %v", err)
-		return "tinyEditor-ai-config.json"
+		return "TextMind-ai-config.json"
 	}
 	return p
 }
@@ -136,7 +136,7 @@ func aiConversationsFilePath(logger *log.Logger) string {
 	p, err := persist.AIConversationsPath()
 	if err != nil {
 		logger.Printf("user config dir unavailable, using local ai-conversations.json: %v", err)
-		return "tinyEditor-ai-conversations.json"
+		return "TextMind-ai-conversations.json"
 	}
 	return p
 }

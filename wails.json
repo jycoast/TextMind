@@ -1,9 +1,9 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "tinyEditor",
-  "outputfilename": "tinyEditor",
+  "name": "TextMind",
+  "outputfilename": "TextMind",
   "info": {
-    "companyName": "tinyEditor",
+    "companyName": "TextMind",
     "productName": "TextMind",
     "productVersion": "1.0.0",
     "copyright": "Copyright © 2026",

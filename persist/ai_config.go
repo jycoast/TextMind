@@ -22,14 +22,14 @@ type AIConfig struct {
 
 // AIConfigPath returns the on-disk path for the AI configuration file.
 //
-// It lives in the same directory as the session.json (UserConfigDir/tinyEditor)
+// It lives in the same directory as the session.json (UserConfigDir/TextMind)
 // so that all app state stays under one tree.
 func AIConfigPath() (string, error) {
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "tinyEditor", "ai-config.json"), nil
+	return filepath.Join(dir, "TextMind", "ai-config.json"), nil
 }
 
 // LoadAIConfig reads the config from path. A missing or unreadable file

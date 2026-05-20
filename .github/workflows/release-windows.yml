@@ -84,7 +84,7 @@ jobs:
         run: |
           $version = "${{ steps.ver.outputs.version }}"
           $binDir  = "build/bin"
-          $srcExe  = Join-Path $binDir "tinyEditor.exe"
+          $srcExe  = Join-Path $binDir "TextMind.exe"
           if (-not (Test-Path $srcExe)) {
             throw "Built binary not found: $srcExe"
           }

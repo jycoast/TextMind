@@ -1,8 +1,8 @@
 import { defineStore } from "pinia";
 import { ref, watch } from "vue";
 
-const COLLAPSED_KEY = "tinyEditor.explorerCollapsed";
-const WIDTH_KEY = "tinyEditor.explorerWidth";
+const COLLAPSED_KEY = "TextMind.explorerCollapsed";
+const WIDTH_KEY = "TextMind.explorerWidth";
 const MIN_WIDTH = 180;
 const MAX_WIDTH = 520;
 const DEFAULT_WIDTH = 260;

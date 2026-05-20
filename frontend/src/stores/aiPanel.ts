@@ -1,8 +1,8 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { ref, watch } from "vue";
 
-const VISIBLE_KEY = "tinyEditor.aiPanelVisible";
-const WIDTH_KEY = "tinyEditor.aiPanelWidth";
+const VISIBLE_KEY = "TextMind.aiPanelVisible";
+const WIDTH_KEY = "TextMind.aiPanelWidth";
 const MIN_WIDTH = 280;
 const MAX_WIDTH = 720;
 const DEFAULT_WIDTH = 380;

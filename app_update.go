@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"tinyEditor/update"
+	"TextMind/update"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )

@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { computed, ref, watchEffect } from "vue";
 import type { Theme } from "@/types";
 
-const THEME_STORAGE_KEY = "tinyEditor.theme";
+const THEME_STORAGE_KEY = "TextMind.theme";
 
 function loadInitialTheme(): Theme {
   try {

@@ -53,7 +53,7 @@ func AIConversationsPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "tinyEditor", "ai-conversations.json"), nil
+	return filepath.Join(dir, "TextMind", "ai-conversations.json"), nil
 }
 
 // LoadConversations reads conversations from path. Missing or invalid file

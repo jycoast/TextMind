@@ -240,7 +240,7 @@ export function createMonacoAdapter(
       if (!sel || sel.isEmpty()) return false;
       const startLine = sel.startLineNumber;
       const startColumn = sel.startColumn;
-      editor.executeEdits("tinyEditor", [{ range: sel, text }]);
+      editor.executeEdits("TextMind", [{ range: sel, text }]);
       editor.setPosition({ lineNumber: startLine, column: startColumn });
       editor.revealPosition(
         { lineNumber: startLine, column: startColumn },

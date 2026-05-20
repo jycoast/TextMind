@@ -1,4 +1,4 @@
-module tinyEditor
+module TextMind
 
 go 1.25.5
 

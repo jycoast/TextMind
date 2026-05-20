@@ -52,8 +52,8 @@ TextMind 基于 [Wails v2](https://wails.io/)（Go）+ [Vue 3](https://vuejs.org
   - 插入到光标位置
   - 转入 AI 面板继续追问
 - **OpenAI 兼容协议**：可对接 OpenAI、DeepSeek、Moonshot、Azure OpenAI、本地 Ollama 等任何提供 `/v1/chat/completions` 与 `/v1/models` 的服务。
-- **多会话管理**：会话标题自动总结、可重命名 / 删除 / 切换模型，全部本地持久化于 `%AppData%/tinyEditor/ai-conversations.json`。
-- **API Key 安全存储**：AI 配置文件以 `0600` 权限保存在 `%AppData%/tinyEditor/ai-config.json`，不上传任何服务器。
+- **多会话管理**：会话标题自动总结、可重命名 / 删除 / 切换模型，全部本地持久化于 `%AppData%/TextMind/ai-conversations.json`。
+- **API Key 安全存储**：AI 配置文件以 `0600` 权限保存在 `%AppData%/TextMind/ai-config.json`，不上传任何服务器。
 
 ### 应用集成
 
@@ -93,7 +93,7 @@ Get-FileHash .\TextMind-vX.Y.Z-windows-amd64.exe -Algorithm SHA256
 
 ## 快捷键
 
-所有应用级动作的快捷键都可在 **设置 → 快捷键设置** 中按需自定义、清空或恢复默认。配置保存在 `UserConfigDir/tinyEditor/keymap.json`，仅记录与默认值不同的项。
+所有应用级动作的快捷键都可在 **设置 → 快捷键设置** 中按需自定义、清空或恢复默认。配置保存在 `UserConfigDir/TextMind/keymap.json`，仅记录与默认值不同的项。
 
 默认绑定：
 
@@ -178,7 +178,7 @@ wails build -platform windows/amd64 -clean -trimpath `
   -ldflags "-s -w -X main.Version=v1.0.0"
 ```
 
-产物位于 `build/bin/tinyEditor.exe`。`-X main.Version=...` 会把版本号注入到二进制中，供应用内更新模块使用。
+产物位于 `build/bin/TextMind.exe`。`-X main.Version=...` 会把版本号注入到二进制中，供应用内更新模块使用。
 
 ---
 
