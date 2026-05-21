@@ -304,6 +304,14 @@ export function createMonacoAdapter(
 
     focus: () => editor.focus(),
 
+    triggerFind: () => {
+      const action = editor.getAction("actions.find");
+      if (!action) return false;
+      editor.focus();
+      void action.run();
+      return true;
+    },
+
     dispose: () => {
       host.removeEventListener("contextmenu", contextMenuListener);
       editor.dispose();

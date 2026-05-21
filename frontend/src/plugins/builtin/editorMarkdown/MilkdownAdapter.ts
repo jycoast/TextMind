@@ -9,23 +9,22 @@ import { Editor, defaultValueCtx, rootCtx, editorViewCtx } from "@milkdown/core"
 import { commonmark } from "@milkdown/preset-commonmark";
 import { gfm } from "@milkdown/preset-gfm";
 import { listener, listenerCtx } from "@milkdown/plugin-listener";
-import { nord } from "@milkdown/theme-nord";
 import { getMarkdown, replaceAll } from "@milkdown/utils";
 import { TextSelection } from "@milkdown/prose/state";
-// The nord theme stylesheet contains a bare `@layer base { ... }` block.
-// Importing it through the normal CSS pipeline makes Tailwind's PostCSS
-// plugin try to merge it into its own base layer and explode with
-// "no matching `@tailwind base` directive". Loading it as raw text and
-// injecting a <style> tag at runtime bypasses PostCSS entirely.
-import nordStyleSrc from "@milkdown/theme-nord/style.css?raw";
+import { themedStyles } from "./theme";
+import { createFindWidget, type FindWidgetHandle } from "./findWidget";
 
-let nordInjected = false;
-function ensureNordStylesInjected(): void {
-  if (nordInjected || typeof document === "undefined") return;
-  nordInjected = true;
+// The bundled @milkdown/theme-nord is a hardcoded dark theme which leaves
+// body text invisible in our light mode. We ship our own minimal stylesheet
+// that drives every visual property off the app's CSS variables so the
+// editor adapts to both themes automatically.
+let stylesInjected = false;
+function ensureStylesInjected(): void {
+  if (stylesInjected || typeof document === "undefined") return;
+  stylesInjected = true;
   const el = document.createElement("style");
-  el.setAttribute("data-tm-injected", "milkdown-nord");
-  el.textContent = nordStyleSrc;
+  el.setAttribute("data-tm-injected", "milkdown-theme");
+  el.textContent = themedStyles;
   document.head.appendChild(el);
 }
 
@@ -51,7 +50,7 @@ interface MilkdownViewState {
 export function createMilkdownAdapter(
   options: MilkdownAdapterOptions,
 ): EditorAdapter {
-  ensureNordStylesInjected();
+  ensureStylesInjected();
   const { host } = options;
 
   // Wrapper div so we can scope styles without colliding with Monaco's host.
@@ -64,12 +63,17 @@ export function createMilkdownAdapter(
   inner.style.boxSizing = "border-box";
   host.appendChild(inner);
 
-  // pendingValue stores writes that arrive before the editor finishes booting.
+  // pendingValue stores writes that arrive before the editor finishes booting,
+  // and stays in sync afterward so getValue() before the first user edit is
+  // still correct without paying for a ProseMirror serialize.
   let pendingValue = "";
   let editor: Editor | null = null;
   let booted = false;
   let disposed = false;
-  let suppressOnChange = false;
+  // Boot starts with onChange suppressed so the initial document insert (which
+  // ProseMirror models as a transaction) doesn't propagate up and clobber
+  // tab.text with an empty string.
+  let suppressOnChange = true;
 
   const changeHandlers: Array<() => void> = [];
   const cursorHandlers: Array<() => void> = [];
@@ -94,9 +98,13 @@ export function createMilkdownAdapter(
     const e = Editor.make()
       .config((ctx) => {
         ctx.set(rootCtx, inner);
+        // pendingValue is captured by Milkdown at config-evaluation time. If
+        // we lose the race against an early setValue() the second replaceAll
+        // below still recovers, but seeding it here avoids an empty-flash.
         ctx.set(defaultValueCtx, pendingValue);
         ctx.get(listenerCtx)
-          .markdownUpdated((_ctx, _md, _prev) => {
+          .markdownUpdated((_ctx, md, _prev) => {
+            pendingValue = md;
             if (suppressOnChange) return;
             for (const h of changeHandlers) h();
           })
@@ -105,17 +113,36 @@ export function createMilkdownAdapter(
             emitSelectionsCount(sel.empty ? 1 : 1);
           });
       })
-      .config(nord)
       .use(commonmark)
       .use(gfm)
       .use(listener);
 
     try {
       await e.create();
+      // dispose() may have run while we were awaiting. Bail out cleanly so
+      // we don't leak an editor mounted into a detached DOM node.
+      if (disposed) {
+        await e.destroy().catch(() => {});
+        return;
+      }
       editor = e;
       booted = true;
+      // Race fix: setValue() calls that landed before / during boot only
+      // updated pendingValue and never reached the editor. Re-apply now so
+      // the user sees the file content even when the config callback ran
+      // with an empty pendingValue.
+      if (pendingValue) {
+        try {
+          e.action(replaceAll(pendingValue));
+        } catch (err) {
+          console.warn("[milkdown] initial replaceAll:", err);
+        }
+      }
     } catch (err) {
       console.error("[milkdown] failed to boot:", err);
+    } finally {
+      // From this point user edits are real change events.
+      suppressOnChange = false;
     }
   })();
 
@@ -132,13 +159,17 @@ export function createMilkdownAdapter(
   function writeMarkdown(md: string) {
     pendingValue = md;
     if (!editor) return;
+    const prevSuppress = suppressOnChange;
     suppressOnChange = true;
     try {
       editor.action(replaceAll(md));
     } catch (err) {
       console.warn("[milkdown] replaceAll:", err);
     } finally {
-      suppressOnChange = false;
+      // Restore (instead of unconditionally setting false) so a writeMarkdown
+      // that races against the boot path doesn't accidentally re-enable
+      // change events before boot finishes.
+      suppressOnChange = prevSuppress;
     }
   }
 
@@ -155,6 +186,21 @@ export function createMilkdownAdapter(
   function getView() {
     if (!editor) throw new Error("milkdown editor not ready");
     return editor.action((ctx) => ctx.get(editorViewCtx));
+  }
+
+  // Lazy-created so we don't allocate DOM for editors the user never searches in.
+  let findWidget: FindWidgetHandle | null = null;
+  function ensureFindWidget(): FindWidgetHandle {
+    if (findWidget) return findWidget;
+    findWidget = createFindWidget(inner, () => {
+      if (!editor || !booted) return null;
+      try {
+        return getView();
+      } catch {
+        return null;
+      }
+    });
+    return findWidget;
   }
 
   const adapter: EditorAdapter = {
@@ -288,10 +334,20 @@ export function createMilkdownAdapter(
       withView((view) => view.focus());
     },
 
+    triggerFind: () => {
+      if (!booted) return false;
+      ensureFindWidget().open();
+      return true;
+    },
+
     dispose: () => {
       if (disposed) return;
       disposed = true;
       inner.removeEventListener("contextmenu", onContextMenuListener);
+      if (findWidget) {
+        findWidget.destroy();
+        findWidget = null;
+      }
       const maybe = editor;
       editor = null;
       if (maybe) {

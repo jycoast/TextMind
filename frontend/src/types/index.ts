@@ -119,5 +119,11 @@ export interface EditorAdapter {
   getSelectionStats: () => SelectionStats;
   onCursorChange: (handler: () => void) => void;
   forceRefresh: () => void;
+  /**
+   * Open an editor-local find/search UI. Each adapter implements this with
+   * whatever native widget makes sense (Monaco's built-in find, a custom
+   * Milkdown bar, etc.). Returns true if the widget was opened.
+   */
+  triggerFind?: () => boolean;
   dispose: () => void;
 }

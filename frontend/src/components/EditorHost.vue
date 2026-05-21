@@ -68,6 +68,16 @@ function rebuildAdapter(reason: string) {
     return;
   }
   if (currentAdapter) {
+    // Flush the outgoing adapter's content + view state into the tab so the
+    // incoming adapter can hydrate from the canonical source. Without this,
+    // unsaved edits made in (e.g.) Milkdown would be lost the moment the
+    // user toggled to Monaco source mode.
+    try {
+      tabsStore.persistCurrentText();
+      tabsStore.persistCurrentViewState();
+    } catch (err) {
+      console.warn("[editor] persist before swap failed:", err);
+    }
     currentAdapter.dispose();
     currentAdapter = null;
   }

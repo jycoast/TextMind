@@ -23,6 +23,10 @@ export function useKeyboardShortcuts(options: ShortcutOptions): void {
       return;
     }
     if (ev.isComposing || ev.keyCode === 229) return;
+    // Monaco binds many shortcuts (Ctrl+F, Ctrl+H, ...) at the editor level
+    // and calls preventDefault when it consumes them. The event still bubbles
+    // up to document — skip ours so we don't re-fire the same command.
+    if (ev.defaultPrevented) return;
 
     const bindings = shortcutsStore.bindings;
     for (const [commandId, comboText] of Object.entries(bindings)) {

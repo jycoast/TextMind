@@ -160,6 +160,26 @@ export const filesPlugin: Plugin = {
     });
 
     ctx.commands.register({
+      id: "edit.find",
+      title: "查找",
+      category: "编辑",
+      defaultKeybinding: "Ctrl+F",
+      handler: () => {
+        const adapter = tabs.adapter;
+        if (!adapter) {
+          ui.showTip("没有打开的编辑器");
+          return;
+        }
+        if (typeof adapter.triggerFind !== "function") {
+          ui.showTip("当前编辑器不支持查找");
+          return;
+        }
+        const opened = adapter.triggerFind();
+        if (!opened) ui.showTip("编辑器尚未就绪");
+      },
+    });
+
+    ctx.commands.register({
       id: "edit.detectLanguage",
       title: "自动识别语言",
       category: "编辑",
