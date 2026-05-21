@@ -1,4 +1,4 @@
-import type { MonacoViewState, RecentFile } from "@/types";
+import type { MonacoViewState, RecentFile, ViewStateBag } from "@/types";
 
 export function normalizeLanguage(language: unknown): string {
   if (typeof language !== "string") return "plaintext";
@@ -33,6 +33,37 @@ export function normalizeViewState(
     n.endColumn = Math.max(1, Number(v.endColumn));
   }
   return n;
+}
+
+/**
+ * Migration helper: legacy sessions stored viewState as a raw MonacoViewState
+ * object. New sessions store it as { monaco: <state>, milkdown: <state>, ... }.
+ * This function accepts either shape and always returns the new bag form.
+ */
+export function normalizeViewStateBag(raw: unknown): ViewStateBag | null {
+  if (!raw || typeof raw !== "object") return null;
+  const obj = raw as Record<string, unknown>;
+  // Heuristic: a legacy MonacoViewState has at least one numeric Monaco-y
+  // field at the top level. A bag stores nested editor-keyed objects, so its
+  // own values are all objects.
+  const looksLegacy =
+    "scrollTop" in obj ||
+    "scrollLeft" in obj ||
+    "startLineNumber" in obj ||
+    "selectionStart" in obj;
+  if (looksLegacy) {
+    const norm = normalizeViewState(raw);
+    return norm ? { monaco: norm } : null;
+  }
+  // Already a bag - shallow validate that values are non-null.
+  const bag: ViewStateBag = {};
+  let any = false;
+  for (const [k, v] of Object.entries(obj)) {
+    if (v == null) continue;
+    bag[k] = v;
+    any = true;
+  }
+  return any ? bag : null;
 }
 
 export function normalizeRecentFile(item: unknown): RecentFile | null {

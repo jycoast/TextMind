@@ -141,6 +141,7 @@ export function createMonacoAdapter(
   });
 
   const adapter: EditorAdapter = {
+    id: "monaco",
     mode: "monaco",
     supportsColumnMode: true,
 
@@ -156,7 +157,7 @@ export function createMonacoAdapter(
       };
     },
 
-    setViewState: (viewState) => {
+    setViewState: (viewState: unknown) => {
       const model = editor.getModel();
       if (!model) return;
       const v = normalizeViewState(viewState);

@@ -58,6 +58,10 @@ export function GetKeymapConfig() {
   return window['go']['main']['App']['GetKeymapConfig']();
 }
 
+export function GrantPluginPermissions(arg1, arg2) {
+  return window['go']['main']['App']['GrantPluginPermissions'](arg1, arg2);
+}
+
 export function KeepDuplicateSelected(arg1) {
   return window['go']['main']['App']['KeepDuplicateSelected'](arg1);
 }
@@ -68,6 +72,10 @@ export function KeepSingletonSelected(arg1) {
 
 export function ListConversations() {
   return window['go']['main']['App']['ListConversations']();
+}
+
+export function ListExternalPlugins() {
+  return window['go']['main']['App']['ListExternalPlugins']();
 }
 
 export function ListFolder(arg1) {
@@ -98,6 +106,10 @@ export function OpenLogDir() {
   return window['go']['main']['App']['OpenLogDir']();
 }
 
+export function OpenPluginsDir() {
+  return window['go']['main']['App']['OpenPluginsDir']();
+}
+
 export function OpenReleasesPage() {
   return window['go']['main']['App']['OpenReleasesPage']();
 }
@@ -112,6 +124,14 @@ export function OpenTextFileByPath(arg1) {
 
 export function OpenTextFileByPathWithEncoding(arg1, arg2) {
   return window['go']['main']['App']['OpenTextFileByPathWithEncoding'](arg1, arg2);
+}
+
+export function PluginCall(arg1, arg2, arg3) {
+  return window['go']['main']['App']['PluginCall'](arg1, arg2, arg3);
+}
+
+export function ReadPluginFile(arg1, arg2) {
+  return window['go']['main']['App']['ReadPluginFile'](arg1, arg2);
 }
 
 export function RenameConversation(arg1, arg2) {
@@ -154,6 +174,10 @@ export function SetConversationModel(arg1, arg2) {
   return window['go']['main']['App']['SetConversationModel'](arg1, arg2);
 }
 
+export function SetExternalPluginEnabled(arg1, arg2) {
+  return window['go']['main']['App']['SetExternalPluginEnabled'](arg1, arg2);
+}
+
 export function SetVersion(arg1) {
   return window['go']['main']['App']['SetVersion'](arg1);
 }
@@ -168,4 +192,8 @@ export function TestAIConnection(arg1) {
 
 export function ToInListSelected(arg1) {
   return window['go']['main']['App']['ToInListSelected'](arg1);
+}
+
+export function UninstallExternalPlugin(arg1) {
+  return window['go']['main']['App']['UninstallExternalPlugin'](arg1);
 }

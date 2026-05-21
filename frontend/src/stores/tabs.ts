@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { computed, ref, shallowRef } from "vue";
-import type { EditorAdapter, MonacoViewState, Tab } from "@/types";
+import type { EditorAdapter, Tab, ViewStateBag } from "@/types";
 import { backend } from "@/api/backend";
 import {
   guessLanguage,
@@ -10,7 +10,7 @@ import { detectLanguageFromContent } from "@/composables/useLanguageDetect";
 import {
   normalizeLanguage,
   normalizePathKey,
-  normalizeViewState,
+  normalizeViewStateBag,
 } from "@/utils/normalize";
 import { useRecentStore } from "@/stores/recent";
 
@@ -29,6 +29,7 @@ function newTabObject(
     dirty: false,
     encoding: "utf-8",
     hasBOM: false,
+    editorId: undefined,
   };
 }
 
@@ -85,25 +86,32 @@ export const useTabsStore = defineStore("tabs", () => {
 
   function persistCurrentViewState(): void {
     const tab = current.value;
-    if (!tab || !adapter.value?.getViewState) return;
-    tab.viewState = normalizeViewState(adapter.value.getViewState());
+    const a = adapter.value;
+    if (!tab || !a?.getViewState) return;
+    const state = a.getViewState();
+    if (state == null) return;
+    const bag: ViewStateBag = { ...(tab.viewState || {}) };
+    bag[a.id] = state;
+    tab.viewState = bag;
   }
 
   function renderCurrentIntoEditor(): void {
     const tab = current.value;
-    if (!tab || !adapter.value) return;
+    const a = adapter.value;
+    if (!tab || !a) return;
     programmaticUpdate.value = true;
     try {
-      adapter.value.setValue(tab.text || "");
-      adapter.value.setLanguage(normalizeLanguage(tab.language));
-      adapter.value.setViewState(normalizeViewState(tab.viewState));
+      a.setValue(tab.text || "");
+      a.setLanguage(normalizeLanguage(tab.language));
+      const bag = tab.viewState || {};
+      a.setViewState(bag[a.id] ?? null);
     } finally {
       programmaticUpdate.value = false;
     }
-    if (columnMode.value && adapter.value.supportsColumnMode) {
-      adapter.value.setColumnMode(true);
+    if (columnMode.value && a.supportsColumnMode) {
+      a.setColumnMode(true);
     }
-    adapter.value.focus();
+    a.focus();
   }
 
   function pullLatestFromEditor(): { changed: boolean; tab: Tab | null } {
@@ -428,9 +436,10 @@ export const useTabsStore = defineStore("tabs", () => {
       language?: string;
       path?: string;
       dirty?: boolean;
-      viewState?: MonacoViewState | null;
+      viewState?: unknown;
       encoding?: string;
       hasBOM?: boolean;
+      editorId?: string;
     }>;
   }): void {
     const list = payload.tabs ?? [];
@@ -442,10 +451,11 @@ export const useTabsStore = defineStore("tabs", () => {
         text: t.text || "",
         language: normalizeLanguage(t.language),
         path: t.path || "",
-        viewState: normalizeViewState(t.viewState),
+        viewState: normalizeViewStateBag(t.viewState),
         dirty: Boolean(t.dirty),
         encoding: t.encoding || "utf-8",
         hasBOM: Boolean(t.hasBOM),
+        editorId: t.editorId,
       }));
       selectedIndex.value = Math.max(
         0,

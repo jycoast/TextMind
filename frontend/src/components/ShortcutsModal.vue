@@ -1,13 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useShortcutsStore } from "@/stores/shortcuts";
-import {
-  ACTION_META,
-  ALL_ACTION_IDS,
-  comboFromEvent,
-  stringifyCombo,
-  type ActionId,
-} from "@/composables/shortcutModel";
+import { commandRegistry } from "@/plugins/core";
+import { comboFromEvent, stringifyCombo } from "@/composables/shortcutModel";
 
 const props = defineProps<{
   visible: boolean;
@@ -19,27 +14,46 @@ const emit = defineEmits<{
 
 const shortcuts = useShortcutsStore();
 
-const recordingId = ref<ActionId | null>(null);
+const recordingId = ref<string | null>(null);
 
 interface PendingConflict {
-  id: ActionId;
+  id: string;
   combo: string;
-  occupiedBy: ActionId;
+  occupiedBy: string;
 }
 const pendingConflict = ref<PendingConflict | null>(null);
 
 const status = ref<{ kind: "info" | "ok" | "err"; text: string } | null>(null);
 
-const rows = computed(() =>
-  ALL_ACTION_IDS.map((id) => ({
-    id,
-    label: ACTION_META[id].label,
-    binding: shortcuts.bindings[id] || "",
-    defaultBinding: ACTION_META[id].defaultBinding || "",
-    isDefault:
-      (shortcuts.bindings[id] || "") === (ACTION_META[id].defaultBinding || ""),
-  })),
-);
+interface Row {
+  id: string;
+  label: string;
+  category: string;
+  binding: string;
+  defaultBinding: string;
+  isDefault: boolean;
+}
+
+function labelFor(id: string): string {
+  const cmd = commandRegistry.get(id);
+  return cmd?.title || id;
+}
+
+const rows = computed<Row[]>(() => {
+  const defaults = shortcuts.defaults;
+  return commandRegistry.listBindable().map((cmd) => {
+    const binding = shortcuts.bindings[cmd.id] || "";
+    const defaultBinding = defaults[cmd.id] || "";
+    return {
+      id: cmd.id,
+      label: cmd.title,
+      category: cmd.category || "",
+      binding,
+      defaultBinding,
+      isDefault: binding === defaultBinding,
+    };
+  });
+});
 
 function close() {
   stopRecording();
@@ -48,7 +62,7 @@ function close() {
   emit("close");
 }
 
-function startRecording(id: ActionId) {
+function startRecording(id: string) {
   pendingConflict.value = null;
   status.value = {
     kind: "info",
@@ -61,13 +75,13 @@ function stopRecording() {
   recordingId.value = null;
 }
 
-function commitBinding(id: ActionId, combo: string) {
+function commitBinding(id: string, combo: string) {
   const conflict = shortcuts.findConflict(combo, id);
   if (conflict) {
     pendingConflict.value = { id, combo, occupiedBy: conflict };
     status.value = {
       kind: "err",
-      text: `该组合已绑定到「${ACTION_META[conflict].label}」`,
+      text: `该组合已绑定到「${labelFor(conflict)}」`,
     };
     return;
   }
@@ -82,7 +96,7 @@ function confirmReplace() {
   shortcuts.setBinding(pc.id, pc.combo);
   status.value = {
     kind: "ok",
-    text: `已替换：${ACTION_META[pc.id].label} = ${pc.combo}`,
+    text: `已替换：${labelFor(pc.id)} = ${pc.combo}`,
   };
   pendingConflict.value = null;
 }
@@ -92,17 +106,15 @@ function cancelReplace() {
   status.value = null;
 }
 
-function onClear(id: ActionId) {
+function onClear(id: string) {
   shortcuts.clearBinding(id);
-  status.value = { kind: "ok", text: `已清空「${ACTION_META[id].label}」绑定` };
+  status.value = { kind: "ok", text: `已清空「${labelFor(id)}」绑定` };
 }
 
-function onReset(id: ActionId) {
+function onReset(id: string) {
   shortcuts.resetBinding(id);
-  status.value = {
-    kind: "ok",
-    text: `已恢复默认：${ACTION_META[id].defaultBinding || "（无绑定）"}`,
-  };
+  const next = shortcuts.bindings[id] || "（无绑定）";
+  status.value = { kind: "ok", text: `已恢复默认：${next}` };
 }
 
 function onResetAll() {
@@ -160,16 +172,13 @@ watch(
   },
 );
 
-watch(
-  recordingId,
-  (cur, prev) => {
-    if (cur && !prev) {
-      document.addEventListener("keydown", onCaptureKeydown, true);
-    } else if (!cur && prev) {
-      document.removeEventListener("keydown", onCaptureKeydown, true);
-    }
-  },
-);
+watch(recordingId, (cur, prev) => {
+  if (cur && !prev) {
+    document.addEventListener("keydown", onCaptureKeydown, true);
+  } else if (!cur && prev) {
+    document.removeEventListener("keydown", onCaptureKeydown, true);
+  }
+});
 
 onBeforeUnmount(() => {
   document.removeEventListener("keydown", onCaptureKeydown, true);
@@ -246,8 +255,7 @@ onBeforeUnmount(() => {
           :style="{
             background:
               i % 2 === 0 ? 'var(--panel)' : 'var(--panel-elevated)',
-            borderTop:
-              i === 0 ? 'none' : '1px solid var(--hairline)',
+            borderTop: i === 0 ? 'none' : '1px solid var(--hairline)',
           }"
         >
           <div
@@ -255,6 +263,13 @@ onBeforeUnmount(() => {
             :style="{ color: 'var(--text)' }"
             :title="row.id"
           >
+            <span
+              v-if="row.category"
+              class="text-[11px] mr-1"
+              :style="{ color: 'var(--muted)' }"
+            >
+              [{{ row.category }}]
+            </span>
             {{ row.label }}
             <span
               v-if="!row.isDefault"
@@ -277,137 +292,112 @@ onBeforeUnmount(() => {
                 录制中…
               </span>
             </template>
-            <template v-else-if="row.binding">
-              <kbd
-                class="inline-block px-2 py-0.5 rounded-sm text-[12px] font-mono border"
+            <template v-else>
+              <span
+                class="inline-block px-2 py-0.5 rounded-sm text-[12px] mr-2"
                 :style="{
-                  background: 'var(--panel-input)',
-                  borderColor: 'var(--hairline)',
+                  background: 'var(--panel)',
+                  border: '1px solid var(--hairline)',
                   color: 'var(--text)',
                 }"
               >
-                {{ row.binding }}
-              </kbd>
-            </template>
-            <template v-else>
-              <span
-                class="text-[12px]"
-                :style="{ color: 'var(--muted)' }"
-              >
-                未设置
+                {{ row.binding || "未绑定" }}
               </span>
+              <button
+                type="button"
+                class="h-6 px-2 text-[12px] rounded-sm cursor-pointer border"
+                :style="{
+                  background: 'transparent',
+                  borderColor: 'var(--hairline)',
+                  color: 'var(--muted)',
+                }"
+                @click="startRecording(row.id)"
+              >
+                录制
+              </button>
+              <button
+                v-if="row.binding"
+                type="button"
+                class="h-6 px-2 text-[12px] rounded-sm cursor-pointer border ml-1"
+                :style="{
+                  background: 'transparent',
+                  borderColor: 'var(--hairline)',
+                  color: 'var(--muted)',
+                }"
+                @click="onClear(row.id)"
+              >
+                清空
+              </button>
+              <button
+                v-if="!row.isDefault"
+                type="button"
+                class="h-6 px-2 text-[12px] rounded-sm cursor-pointer border ml-1"
+                :style="{
+                  background: 'transparent',
+                  borderColor: 'var(--hairline)',
+                  color: 'var(--muted)',
+                }"
+                @click="onReset(row.id)"
+              >
+                还原
+              </button>
             </template>
           </div>
-
-          <div class="flex items-center gap-1">
-            <button
-              type="button"
-              class="h-7 px-2 text-[12px] rounded-sm cursor-pointer border"
-              :style="{
-                background: 'transparent',
-                borderColor: 'var(--hairline)',
-                color: 'var(--text)',
-              }"
-              :disabled="recordingId !== null && recordingId !== row.id"
-              @click="startRecording(row.id)"
-            >
-              {{ recordingId === row.id ? "取消" : "录制" }}
-            </button>
-            <button
-              type="button"
-              class="h-7 px-2 text-[12px] rounded-sm cursor-pointer border"
-              :style="{
-                background: 'transparent',
-                borderColor: 'var(--hairline)',
-                color: 'var(--muted)',
-              }"
-              :disabled="!row.binding"
-              @click="onClear(row.id)"
-            >
-              清空
-            </button>
-            <button
-              type="button"
-              class="h-7 px-2 text-[12px] rounded-sm cursor-pointer border"
-              :style="{
-                background: 'transparent',
-                borderColor: 'var(--hairline)',
-                color: 'var(--muted)',
-              }"
-              :disabled="row.isDefault"
-              @click="onReset(row.id)"
-            >
-              重置
-            </button>
-          </div>
         </div>
       </div>
 
       <div
-        v-if="pendingConflict"
-        class="mt-3 p-2.5 rounded-sm border text-[12px] flex items-center justify-between gap-3"
-        :style="{
-          background: 'var(--panel)',
-          borderColor: 'var(--accent)',
-          color: 'var(--text)',
-        }"
-      >
-        <div>
-          组合
-          <kbd
-            class="px-1.5 py-0.5 rounded-sm font-mono border mx-1"
-            :style="{
-              background: 'var(--panel-input)',
-              borderColor: 'var(--hairline)',
-            }"
-            >{{ pendingConflict.combo }}</kbd
-          >
-          已被「{{ ACTION_META[pendingConflict.occupiedBy].label
-          }}」占用。是否清空原绑定并改为「{{
-            ACTION_META[pendingConflict.id].label
-          }}」？
-        </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            class="h-7 px-2.5 text-[12px] rounded-sm cursor-pointer border"
-            :style="{
-              background: 'var(--accent)',
-              borderColor: 'var(--accent)',
-              color: 'var(--bg)',
-            }"
-            @click="confirmReplace"
-          >
-            替换
-          </button>
-          <button
-            type="button"
-            class="h-7 px-2.5 text-[12px] rounded-sm cursor-pointer border"
-            :style="{
-              background: 'transparent',
-              borderColor: 'var(--hairline)',
-              color: 'var(--muted)',
-            }"
-            @click="cancelReplace"
-          >
-            取消
-          </button>
-        </div>
-      </div>
-
-      <div
-        v-if="status && !pendingConflict"
+        v-if="status"
         class="mt-3 text-[12px]"
         :style="{
           color:
             status.kind === 'err'
-              ? '#e57373'
+              ? 'var(--error)'
               : status.kind === 'ok'
-                ? 'var(--accent)'
+                ? 'var(--success, var(--accent))'
                 : 'var(--muted)',
         }"
       >
         {{ status.text }}
+      </div>
+
+      <div
+        v-if="pendingConflict"
+        class="mt-3 p-2 rounded-sm border flex items-center gap-2"
+        :style="{
+          borderColor: 'var(--hairline)',
+          background: 'var(--panel)',
+        }"
+      >
+        <div class="flex-1 text-[12px]" :style="{ color: 'var(--text)' }">
+          {{ pendingConflict.combo }} 已被「{{
+            labelFor(pendingConflict.occupiedBy)
+          }}」占用。是否替换？
+        </div>
+        <button
+          type="button"
+          class="h-6 px-2 text-[12px] rounded-sm cursor-pointer border"
+          :style="{
+            background: 'transparent',
+            borderColor: 'var(--hairline)',
+            color: 'var(--text)',
+          }"
+          @click="confirmReplace"
+        >
+          替换
+        </button>
+        <button
+          type="button"
+          class="h-6 px-2 text-[12px] rounded-sm cursor-pointer border"
+          :style="{
+            background: 'transparent',
+            borderColor: 'var(--hairline)',
+            color: 'var(--muted)',
+          }"
+          @click="cancelReplace"
+        >
+          取消
+        </button>
       </div>
     </div>
   </div>

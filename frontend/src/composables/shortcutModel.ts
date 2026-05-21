@@ -1,54 +1,16 @@
 // shortcutModel.ts
 //
-// Centralised registry of customizable keyboard actions plus parsing /
-// stringifying / event-matching helpers for key combos.
+// Parsing / stringifying / event-matching helpers for key combos.
+//
+// Action ids are no longer enumerated here; the CommandRegistry owns the
+// authoritative list and each plugin declares its own command ids. This
+// module is intentionally pure: no imports from the plugin layer so it
+// stays usable from low-level code.
 //
 // Combo string canonical form: "Ctrl+Alt+Shift+<KEY>" where <KEY> is the
 // physical-ish key produced by `KeyboardEvent.key`, normalized to uppercase
-// for single letters and digits, preserved verbatim for named keys ("Enter",
-// "F2", "ArrowLeft", ...). An empty string means "no binding".
-
-export type ActionId =
-  | "file.save"
-  | "file.openFile"
-  | "file.openFolder"
-  | "edit.toggleColumn"
-  | "edit.templateSql"
-  | "edit.detectLanguage"
-  | "text.extract"
-  | "text.dedupe"
-  | "text.singleton"
-  | "text.duplicates"
-  | "text.inlist"
-  | "json.format"
-  | "json.minify"
-  | "ai.insertSelection"
-  | "ai.togglePanel";
-
-export interface ActionMeta {
-  label: string;
-  defaultBinding: string;
-}
-
-export const ACTION_META: Record<ActionId, ActionMeta> = {
-  "file.save": { label: "保存", defaultBinding: "Ctrl+S" },
-  "file.openFile": { label: "打开文件", defaultBinding: "" },
-  "file.openFolder": { label: "打开文件夹", defaultBinding: "" },
-  "edit.toggleColumn": { label: "列编辑", defaultBinding: "Ctrl+Alt+L" },
-  "edit.templateSql": { label: "模板批量生成", defaultBinding: "Ctrl+Shift+G" },
-  "edit.detectLanguage": { label: "自动识别语言", defaultBinding: "" },
-  "text.extract": { label: "提取文本", defaultBinding: "" },
-  "text.dedupe": { label: "去重", defaultBinding: "" },
-  "text.singleton": { label: "保留单次出现项", defaultBinding: "" },
-  "text.duplicates": { label: "保留重复项", defaultBinding: "" },
-  "text.inlist": { label: "转 IN 列表", defaultBinding: "" },
-  "json.format": { label: "格式化 JSON", defaultBinding: "" },
-  "json.minify": { label: "压缩 JSON", defaultBinding: "" },
-  "ai.insertSelection": { label: "插入选中文本到 AI 对话框", defaultBinding: "" },
-  "ai.togglePanel": { label: "切换 AI 面板", defaultBinding: "Ctrl+L" },
-};
-
-export const ALL_ACTION_IDS: ActionId[] = Object.keys(ACTION_META) as ActionId[];
+// for single letters and digits, preserved verbatim for named keys
+// ("Enter", "F2", "ArrowLeft", ...). An empty string means "no binding".
 
 export interface KeyCombo {
   ctrl: boolean;
@@ -116,6 +78,13 @@ export function parseCombo(text: string): KeyCombo | null {
   return combo;
 }
 
+/** Canonicalize an arbitrary text binding (e.g. user typed "ctrl+s"). */
+export function canonicalizeBinding(input: string): string {
+  const parsed = parseCombo(input);
+  if (!parsed) return "";
+  return stringifyCombo(parsed);
+}
+
 /**
  * Build a KeyCombo from a KeyboardEvent. Returns null when:
  * - the press is part of an IME composition (`ev.isComposing` or `keyCode 229`)
@@ -144,13 +113,4 @@ export function matchesCombo(ev: KeyboardEvent, combo: KeyCombo): boolean {
   if (ev.metaKey) return false;
   const evKey = normalizeKey(ev.key || "");
   return keysEqual(evKey, combo.key);
-}
-
-/** Convenience: build the defaults map keyed by ActionId. */
-export function buildDefaultBindings(): Record<ActionId, string> {
-  const out = {} as Record<ActionId, string>;
-  for (const id of ALL_ACTION_IDS) {
-    out[id] = ACTION_META[id].defaultBinding;
-  }
-  return out;
 }

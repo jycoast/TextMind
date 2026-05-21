@@ -32,11 +32,15 @@ export function GetConversation(arg1:string):Promise<main.ConversationDTO>;
 
 export function GetKeymapConfig():Promise<main.KeymapConfigDTO>;
 
+export function GrantPluginPermissions(arg1:string,arg2:Array<string>):Promise<main.SimpleResult>;
+
 export function KeepDuplicateSelected(arg1:string):Promise<main.ToolResult>;
 
 export function KeepSingletonSelected(arg1:string):Promise<main.ToolResult>;
 
 export function ListConversations():Promise<main.ConversationListDTO>;
+
+export function ListExternalPlugins():Promise<main.PluginListDTO>;
 
 export function ListFolder(arg1:string):Promise<main.ListFolderResult>;
 
@@ -52,6 +56,8 @@ export function OpenFolder():Promise<main.OpenFolderResult>;
 
 export function OpenLogDir():Promise<void>;
 
+export function OpenPluginsDir():Promise<void>;
+
 export function OpenReleasesPage():Promise<void>;
 
 export function OpenTextFile():Promise<main.OpenFileResult>;
@@ -59,6 +65,10 @@ export function OpenTextFile():Promise<main.OpenFileResult>;
 export function OpenTextFileByPath(arg1:string):Promise<main.OpenFileResult>;
 
 export function OpenTextFileByPathWithEncoding(arg1:string,arg2:string):Promise<main.OpenFileResult>;
+
+export function PluginCall(arg1:string,arg2:string,arg3:string):Promise<main.PluginCallResult>;
+
+export function ReadPluginFile(arg1:string,arg2:string):Promise<string>;
 
 export function RenameConversation(arg1:string,arg2:string):Promise<main.SimpleResult>;
 
@@ -80,6 +90,8 @@ export function SelectConversation(arg1:string):Promise<main.SimpleResult>;
 
 export function SetConversationModel(arg1:string,arg2:string):Promise<main.SimpleResult>;
 
+export function SetExternalPluginEnabled(arg1:string,arg2:boolean):Promise<main.SimpleResult>;
+
 export function SetVersion(arg1:string):Promise<void>;
 
 export function StartChatStream(arg1:main.StartChatRequest):Promise<main.StartChatResult>;
@@ -87,3 +99,5 @@ export function StartChatStream(arg1:main.StartChatRequest):Promise<main.StartCh
 export function TestAIConnection(arg1:main.AIConfigDTO):Promise<main.SimpleResult>;
 
 export function ToInListSelected(arg1:string):Promise<main.ToolResult>;
+
+export function UninstallExternalPlugin(arg1:string):Promise<main.SimpleResult>;

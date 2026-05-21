@@ -6,7 +6,6 @@ import { useWorkspaceStore } from "@/stores/workspace";
 import {
   normalizeLanguage,
   normalizeRecentFile,
-  normalizeViewState,
 } from "@/utils/normalize";
 
 export async function saveSession(): Promise<void> {
@@ -28,9 +27,8 @@ export async function saveSession(): Promise<void> {
       dirty: Boolean(t.dirty),
       encoding: t.encoding || "utf-8",
       hasBOM: Boolean(t.hasBOM),
-      ...(t.viewState
-        ? { viewState: normalizeViewState(t.viewState) }
-        : {}),
+      ...(t.viewState ? { viewState: t.viewState } : {}),
+      ...(t.editorId ? { editorId: t.editorId } : {}),
     })) as unknown as Parameters<typeof backend.saveSession>[0]["tabs"],
     recentFiles: recentStore.files.map((x) => ({
       path: x.path,

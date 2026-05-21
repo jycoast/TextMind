@@ -11,16 +11,34 @@ export interface MonacoViewState {
   endColumn?: number;
 }
 
+/**
+ * Per-editor view state. Each editor plugin owns a key in this map and is
+ * responsible for serializing / restoring its own state. Legacy sessions
+ * stored a raw MonacoViewState; the persistence layer migrates those on
+ * load to { monaco: <legacy> }.
+ */
+export type ViewStateBag = Record<string, unknown>;
+
 export interface Tab {
   id: string;
   title: string;
   text: string;
   language: string;
   path: string;
-  viewState: MonacoViewState | null;
+  /**
+   * Map of editor-id -> opaque view state. Empty when the tab has never
+   * been opened in any editor.
+   */
+  viewState: ViewStateBag | null;
   dirty: boolean;
   encoding: string;
   hasBOM: boolean;
+  /**
+   * Optional override pinning a specific editor for this tab (e.g. user
+   * toggled "source view" on a markdown file). When unset, EditorRegistry
+   * picks the highest-priority match.
+   */
+  editorId?: string;
 }
 
 export interface EncodingMeta {
@@ -74,12 +92,20 @@ export interface SelectionStats {
 }
 
 export interface EditorAdapter {
+  /** Editor implementation id (e.g. "monaco", "milkdown"). */
+  id: string;
+  /** Legacy hint for the bottom bar; kept for backwards compatibility. */
   mode: EditorAdapterMode;
   supportsColumnMode: boolean;
   getValue: () => string;
   setValue: (value: string) => void;
-  getViewState: () => MonacoViewState | null;
-  setViewState: (viewState: MonacoViewState | null) => void;
+  /**
+   * Returns the adapter-specific view state (cursor, scroll, etc.). The
+   * tabs store stores it under tab.viewState[adapter.id] so each editor
+   * has its own slot.
+   */
+  getViewState: () => unknown;
+  setViewState: (viewState: unknown) => void;
   setLanguage: (language: string) => void;
   setTheme: (themeName: string) => void;
   getSelectionText: () => string;

@@ -15,15 +15,18 @@ type Session struct {
 	WorkspaceRoot string        `json:"workspace_root,omitempty"`
 }
 
-// TabSnapshot is one document tab.
+// TabSnapshot is one document tab. ViewState is opaque JSON owned by
+// whichever editor plugin produced it; the host just round-trips it.
 type TabSnapshot struct {
-	Title    string `json:"title"`
-	Text     string `json:"text"`
-	Language string `json:"language,omitempty"`
-	Path     string `json:"path,omitempty"`
-	Dirty    bool   `json:"dirty,omitempty"`
-	Encoding string `json:"encoding,omitempty"`
-	HasBOM   bool   `json:"hasBOM,omitempty"`
+	Title     string          `json:"title"`
+	Text      string          `json:"text"`
+	Language  string          `json:"language,omitempty"`
+	Path      string          `json:"path,omitempty"`
+	Dirty     bool            `json:"dirty,omitempty"`
+	Encoding  string          `json:"encoding,omitempty"`
+	HasBOM    bool            `json:"hasBOM,omitempty"`
+	ViewState json.RawMessage `json:"viewState,omitempty"`
+	EditorID  string          `json:"editorId,omitempty"`
 }
 
 // RecentFile is recently opened file metadata.

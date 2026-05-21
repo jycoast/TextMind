@@ -184,35 +184,54 @@ wails build -platform windows/amd64 -clean -trimpath `
 
 ## 项目结构
 
+TextMind 采用「内核 + 内置插件 + 外置插件」的分层架构。内核只提供窗口、文件 I/O、Tab、编辑器宿主、命令派发与各类注册表；其他功能全部作为插件接入。详见 [`docs/plugin-api.md`](docs/plugin-api.md)。
+
 ```
 TextMind/
-├── main.go                  # Wails 入口；嵌入 frontend/dist 静态资源
-├── app.go                   # 应用上下文 + 文件 / 会话 / 工具相关 Wails 绑定
-├── app_ai.go                # AI 配置 / 会话 / 流式聊天 Wails 绑定
-├── app_update.go            # 应用内更新 Wails 绑定
-├── ai/                      # OpenAI 兼容客户端（chat 流式 + models）
-├── persist/                 # 会话、AI 配置、AI 对话的本地持久化
-├── extract/                 # 文本提取核心（filter/capture/block）
-├── dedupe/                  # 行去重 / 仅保留单次出现项
-├── inlist/                  # 转 SQL IN 列表
-├── update/                  # GitHub Release 拉取、下载、Windows 安装器
-├── build/                   # Wails 构建模板与图标
+├── main.go                  # Wails 入口；初始化 pluginhost 并嵌入 frontend/dist
+├── app.go                   # 文件 / 会话 / 工具相关 Wails 绑定
+├── app_ai.go                # AI 配置 / 会话 / 流式聊天绑定
+├── app_update.go            # 应用内更新绑定
+├── app_plugins.go           # 外置插件发现 / 启用禁用 / PluginCall / 权限管理
+├── plugins_builtin.go       # 内置后端模块注册（textops / json / ai / updater / shortcuts）
+├── pluginhost/              # 插件宿主：模块注册、PluginCall 桥、权限白名单
+├── ai/                      # OpenAI 兼容客户端
+├── persist/                 # Session / AI / Keymap 本地持久化（含 viewState 透传）
+├── extract/  dedupe/ inlist/ # 文本工具核心
+├── update/                  # GitHub Release 拉取与安装
 ├── frontend/
 │   ├── src/
-│   │   ├── App.vue          # 根组件，串联所有面板与弹窗
-│   │   ├── components/      # 编辑器、标签栏、AI 面板、模态框等
-│   │   ├── composables/     # useMonaco / useAIChat / useSession 等
-│   │   ├── stores/          # Pinia 状态：tabs / workspace / aiChat / update ...
-│   │   ├── api/backend.ts   # 对 wailsjs 绑定的封装
-│   │   └── assets/          # 图标与样式
-│   ├── wailsjs/             # `wails generate` 生成的 TS 绑定（自动维护）
-│   ├── package.json
-│   └── vite.config.ts
+│   │   ├── App.vue          # 极薄宿主：TopBar / EditorHost / PluginSidePanels / PluginModals
+│   │   ├── components/      # 编辑器宿主、Tab、BottomBar、复用组件
+│   │   ├── composables/     # useMonaco / useSession / useKeyboardShortcuts ...
+│   │   ├── stores/          # Pinia 状态
+│   │   ├── plugins/
+│   │   │   ├── core/        # PluginManager + 7 个注册表 + ModalLayer + EventBus
+│   │   │   ├── builtin/     # 内置前端插件（files / textTools / json / ai / updater
+│   │   │   │                #             / shortcuts / pluginsUi / editorMonaco / editorMarkdown）
+│   │   │   ├── external/    # 外置插件动态加载器
+│   │   │   └── bootstrap.ts # 启动期注册 + 激活
+│   │   └── api/backend.ts   # 对 wailsjs 绑定的封装
+│   └── wailsjs/             # `wails generate` 生成的 TS 绑定
+├── docs/plugin-api.md       # 插件 API 文档
+├── examples/hello-plugin/   # 最小外置插件示例
 ├── .github/workflows/
-│   └── release-windows.yml  # 推 tag 自动构建 + 发布 Release
-├── go.mod / go.sum
-└── wails.json
+└── go.mod / go.sum / wails.json
 ```
+
+**插件相关命令一览**（部分）：
+
+| 命令 | 来源插件 | 默认快捷键 |
+|------|----------|-----------|
+| `file.save` | textmind.files | Ctrl+S |
+| `edit.templateSql` | textmind.text-tools | Ctrl+Shift+G |
+| `edit.toggleColumn` | textmind.files | Ctrl+Alt+L |
+| `text.dedupe` / `text.inlist` / `text.extract` | textmind.text-tools | — |
+| `json.format` / `json.minify` | textmind.json | — |
+| `ai.togglePanel` | textmind.ai | Ctrl+L |
+| `markdown.toggleSourceMode` | textmind.editor.markdown | — |
+| `shortcuts.open` / `plugins.open` | textmind.shortcuts / textmind.plugins-ui | — |
+| `app.checkForUpdates` | textmind.updater | — |
 
 ---
 

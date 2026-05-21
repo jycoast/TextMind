@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"embed"
 	_ "embed"
 	"io"
 	"io/fs"
 	"log"
 	"os"
+
+	"TextMind/pluginhost"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -36,6 +39,18 @@ func main() {
 
 	app := NewApp(logger, launchPath)
 	app.SetVersion(Version)
+
+	// pluginhost is the seed for the Go-side plugin architecture. Built-in
+	// modules currently live alongside the App receiver (so existing Wails
+	// bindings keep working without regeneration) but new backend plugins
+	// should register here so they participate in lifecycle, the Phase-3
+	// bridge, etc.
+	host := pluginhost.NewHost(logger)
+	bridge := pluginhost.NewBridge()
+	app.pluginHost = host
+	app.pluginBridge = bridge
+	registerBuiltinModules(host, app)
+
 	err = wails.Run(&options.App{
 		Title:     "TextMind",
 		Width:     1000,
@@ -47,7 +62,10 @@ func main() {
 		},
 		BackgroundColour: &options.RGBA{R: 18, G: 18, B: 20, A: 1},
 		OnStartup:        app.startup,
-		OnShutdown:       app.shutdown,
+		OnShutdown: func(ctx context.Context) {
+			host.Shutdown(ctx)
+			app.shutdown(ctx)
+		},
 		Bind: []interface{}{
 			app,
 		},

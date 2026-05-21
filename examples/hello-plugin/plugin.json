@@ -1,0 +1,10 @@
+{
+  "id": "examples.hello-plugin",
+  "name": "Hello Plugin",
+  "version": "0.1.0",
+  "description": "Minimal TextMind plugin: registers a command, menu item, and status bar button.",
+  "author": "TextMind examples",
+  "entry": "index.js",
+  "activationEvents": ["onStartup"],
+  "permissions": []
+}

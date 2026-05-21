@@ -114,6 +114,30 @@ export const backend = {
   ): Promise<main.SimpleResult> => App.DownloadAndInstallUpdate(req),
   cancelUpdate: (): Promise<main.SimpleResult> => App.CancelUpdate(),
   openReleasesPage: (): Promise<void> => App.OpenReleasesPage(),
+
+  listExternalPlugins: (): Promise<main.PluginListDTO> =>
+    App.ListExternalPlugins(),
+  readPluginFile: (pluginId: string, relative: string): Promise<string> =>
+    App.ReadPluginFile(pluginId, relative),
+  setExternalPluginEnabled: (
+    pluginId: string,
+    enabled: boolean,
+  ): Promise<main.SimpleResult> =>
+    App.SetExternalPluginEnabled(pluginId, enabled),
+  uninstallExternalPlugin: (pluginId: string): Promise<main.SimpleResult> =>
+    App.UninstallExternalPlugin(pluginId),
+  openPluginsDir: (): Promise<void> => App.OpenPluginsDir(),
+  pluginCall: (
+    pluginId: string,
+    method: string,
+    payloadJson: string,
+  ): Promise<main.PluginCallResult> =>
+    App.PluginCall(pluginId, method, payloadJson),
+  grantPluginPermissions: (
+    pluginId: string,
+    permissions: string[],
+  ): Promise<main.SimpleResult> =>
+    App.GrantPluginPermissions(pluginId, permissions),
 };
 
 export function isBackendReady(): boolean {

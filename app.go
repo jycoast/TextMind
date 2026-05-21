@@ -13,6 +13,7 @@ import (
 	"TextMind/extract"
 	"TextMind/inlist"
 	"TextMind/persist"
+	"TextMind/pluginhost"
 	"TextMind/textcodec"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -29,6 +30,8 @@ type App struct {
 	aiMu             sync.Mutex
 	aiStreams        streamRegistry
 	version          string
+	pluginHost       *pluginhost.Host
+	pluginBridge     *pluginhost.Bridge
 }
 
 type SessionPayload struct {

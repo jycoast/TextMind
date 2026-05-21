@@ -10,6 +10,15 @@
     "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@milkdown/core": "^7.21.1",
+    "@milkdown/ctx": "^7.21.1",
+    "@milkdown/plugin-listener": "^7.21.1",
+    "@milkdown/preset-commonmark": "^7.21.1",
+    "@milkdown/preset-gfm": "^7.21.1",
+    "@milkdown/prose": "^7.21.1",
+    "@milkdown/theme-nord": "^7.21.1",
+    "@milkdown/transformer": "^7.21.1",
+    "@milkdown/utils": "^7.21.1",
     "@vueuse/core": "^11.3.0",
     "highlight.js": "^11.11.1",
     "markdown-it": "^14.1.1",

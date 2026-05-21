@@ -1,73 +1,63 @@
 <script setup lang="ts">
-import { storeToRefs } from "pinia";
-import FileMenu from "./menus/FileMenu.vue";
-import EditMenu from "./menus/EditMenu.vue";
-import SettingsMenu from "./menus/SettingsMenu.vue";
-import { useAIPanelStore } from "@/stores/aiPanel";
+import { computed, ref, onBeforeUnmount, onMounted } from "vue";
+import { menuRegistry, statusBarRegistry } from "@/plugins/core";
+import DynamicMenu from "@/plugins/core/hosts/DynamicMenu.vue";
 
-defineEmits<{
-  (e: "save"): void;
-  (e: "saveAs"): void;
-  (e: "openFile"): void;
-  (e: "openFolder"): void;
-  (e: "openRecent", path: string): void;
-  (e: "template-sql"): void;
-  (e: "toggle-column"): void;
-  (e: "detect-language"): void;
-  (e: "open-ai-settings"): void;
-  (e: "open-shortcuts"): void;
-  (e: "toggle-ai-panel"): void;
-  (e: "check-for-updates"): void;
-}>();
+const topMenus = computed(() => menuRegistry.topMenuList().value);
+const openMenu = ref<string | null>(null);
+const rightItems = computed(() => statusBarRegistry.itemsAt("right").value);
 
-const aiPanel = useAIPanelStore();
-const { visible: aiPanelVisible } = storeToRefs(aiPanel);
+function toggle(id: string) {
+  openMenu.value = openMenu.value === id ? null : id;
+}
+
+function close() {
+  openMenu.value = null;
+}
+
+function onDocClick(ev: MouseEvent) {
+  const target = ev.target as HTMLElement | null;
+  if (!target?.closest("[data-menu-root]")) close();
+}
+
+onMounted(() => document.addEventListener("click", onDocClick));
+onBeforeUnmount(() => document.removeEventListener("click", onDocClick));
+
+defineExpose({ close });
 </script>
 
 <template>
-  <header class="block bg-bg">
+  <header class="block bg-bg" data-menu-root>
     <div
       class="h-8 flex items-center gap-0.5 px-2"
       :style="{ borderBottom: '1px solid var(--hairline)' }"
     >
-      <FileMenu
-        @save="$emit('save')"
-        @save-as="$emit('saveAs')"
-        @open-file="$emit('openFile')"
-        @open-folder="$emit('openFolder')"
-        @open-recent="(p) => $emit('openRecent', p)"
-      />
-      <EditMenu
-        @template-sql="$emit('template-sql')"
-        @toggle-column="$emit('toggle-column')"
-        @detect-language="$emit('detect-language')"
-      />
-      <SettingsMenu
-        @open-ai-settings="$emit('open-ai-settings')"
-        @open-shortcuts="$emit('open-shortcuts')"
-        @check-for-updates="$emit('check-for-updates')"
-      />
-      <span class="ml-auto flex items-center pr-1">
+      <div v-for="m in topMenus" :key="m.id" class="relative">
         <button
-          class="h-7 px-2.5 text-[13px] cursor-pointer rounded-sm border"
-          :style="
-            aiPanelVisible
-              ? {
-                  background: 'var(--active-row-bg)',
-                  borderColor: 'var(--accent)',
-                  color: 'var(--text)',
-                }
-              : {
-                  background: 'transparent',
-                  borderColor: 'var(--hairline)',
-                  color: 'var(--muted)',
-                }
-          "
-          title="切换 AI 面板 (Ctrl+L)"
-          @click="$emit('toggle-ai-panel')"
+          class="h-7 px-2.5 text-[13px] border-0 bg-transparent cursor-pointer rounded-none"
+          :class="{
+            'text-text border border-solid': openMenu === m.id,
+            'text-muted hover:text-text': openMenu !== m.id,
+          }"
+          :style="openMenu === m.id ? { borderColor: 'var(--accent)' } : {}"
+          aria-haspopup="menu"
+          :aria-expanded="openMenu === m.id"
+          @click.stop="toggle(m.id)"
         >
-          AI
+          {{ m.label }}
         </button>
+        <div
+          v-if="openMenu === m.id"
+          class="tm-menu-panel"
+          role="menu"
+          :aria-label="`${m.label}菜单`"
+          @click.stop="close"
+        >
+          <DynamicMenu :menu-id="`topbar.${m.id}`" variant="topbar" />
+        </div>
+      </div>
+      <span class="ml-auto flex items-center pr-1 gap-1">
+        <component :is="i.component" v-for="i in rightItems" :key="i.id" />
       </span>
     </div>
   </header>

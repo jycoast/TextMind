@@ -1,37 +1,44 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { backend } from "@/api/backend";
+import { commandRegistry, keybindingRegistry } from "@/plugins/core";
 import {
-  ACTION_META,
-  ALL_ACTION_IDS,
-  buildDefaultBindings,
+  canonicalizeBinding,
   parseCombo,
   stringifyCombo,
-  type ActionId,
 } from "@/composables/shortcutModel";
 
 const SAVE_DEBOUNCE_MS = 300;
 
-function isKnownAction(id: string): id is ActionId {
-  return Object.prototype.hasOwnProperty.call(ACTION_META, id);
-}
-
-/** Canonicalize an arbitrary text binding into the stored representation. */
 function canonicalize(input: string): string {
-  const parsed = parseCombo(input);
-  if (!parsed) return "";
-  return stringifyCombo(parsed);
+  return canonicalizeBinding(input);
 }
 
 export const useShortcutsStore = defineStore("shortcuts", () => {
-  const bindings = ref<Record<ActionId, string>>(buildDefaultBindings());
+  // commandId -> combo string (canonical form); empty string means "no binding".
+  const bindings = ref<Record<string, string>>({});
   const loaded = ref<boolean>(false);
 
   let saveTimer: number | null = null;
 
-  const defaults = computed<Record<ActionId, string>>(() =>
-    buildDefaultBindings(),
-  );
+  const defaults = computed<Record<string, string>>(() => buildDefaultBindings());
+
+  function buildDefaultBindings(): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const cmd of commandRegistry.list()) {
+      if (!cmd.bindable) continue;
+      const fromCommand = cmd.defaultKeybinding || "";
+      const fromRegistry = keybindingRegistry.getDefault(cmd.id);
+      out[cmd.id] = fromRegistry || fromCommand || "";
+    }
+    return out;
+  }
+
+  function ensureDefaults(): void {
+    const defaults = buildDefaultBindings();
+    const next = { ...defaults, ...bindings.value };
+    bindings.value = next;
+  }
 
   function scheduleSave(): void {
     if (saveTimer !== null) window.clearTimeout(saveTimer);
@@ -42,12 +49,10 @@ export const useShortcutsStore = defineStore("shortcuts", () => {
   }
 
   async function persistNow(): Promise<void> {
-    // Only persist bindings that differ from the built-in defaults so the
-    // on-disk file stays minimal and self-healing on upgrade.
+    const defaults = buildDefaultBindings();
     const overrides: Record<string, string> = {};
-    for (const id of ALL_ACTION_IDS) {
-      const cur = bindings.value[id] || "";
-      const def = ACTION_META[id].defaultBinding || "";
+    for (const [id, cur] of Object.entries(bindings.value)) {
+      const def = defaults[id] ?? "";
       if (cur !== def) overrides[id] = cur;
     }
     try {
@@ -63,7 +68,6 @@ export const useShortcutsStore = defineStore("shortcuts", () => {
       const next = buildDefaultBindings();
       const stored = cfg?.bindings || {};
       for (const [rawId, rawCombo] of Object.entries(stored)) {
-        if (!isKnownAction(rawId)) continue;
         if (typeof rawCombo !== "string") continue;
         if (rawCombo === "") {
           next[rawId] = "";
@@ -80,20 +84,21 @@ export const useShortcutsStore = defineStore("shortcuts", () => {
     }
   }
 
-  function setBinding(id: ActionId, combo: string): void {
+  function setBinding(id: string, combo: string): void {
     const canon = canonicalize(combo);
     if (!canon) return;
     bindings.value = { ...bindings.value, [id]: canon };
     scheduleSave();
   }
 
-  function clearBinding(id: ActionId): void {
+  function clearBinding(id: string): void {
     bindings.value = { ...bindings.value, [id]: "" };
     scheduleSave();
   }
 
-  function resetBinding(id: ActionId): void {
-    bindings.value = { ...bindings.value, [id]: ACTION_META[id].defaultBinding };
+  function resetBinding(id: string): void {
+    const defaults = buildDefaultBindings();
+    bindings.value = { ...bindings.value, [id]: defaults[id] ?? "" };
     scheduleSave();
   }
 
@@ -102,18 +107,17 @@ export const useShortcutsStore = defineStore("shortcuts", () => {
     scheduleSave();
   }
 
-  /** Returns the ActionId currently bound to the given combo (excluding `exceptId`). */
-  function findConflict(combo: string, exceptId?: ActionId): ActionId | null {
+  /** Returns the command id currently bound to the given combo (excluding `exceptId`). */
+  function findConflict(combo: string, exceptId?: string): string | null {
     const canon = canonicalize(combo);
     if (!canon) return null;
-    for (const id of ALL_ACTION_IDS) {
+    for (const [id, cur] of Object.entries(bindings.value)) {
       if (id === exceptId) continue;
-      if (bindings.value[id] === canon) return id;
+      if (cur === canon) return id;
     }
     return null;
   }
 
-  /** Flush any pending debounced save immediately. */
   async function flush(): Promise<void> {
     if (saveTimer !== null) {
       window.clearTimeout(saveTimer);
@@ -127,6 +131,7 @@ export const useShortcutsStore = defineStore("shortcuts", () => {
     loaded,
     defaults,
     loadFromBackend,
+    ensureDefaults,
     setBinding,
     clearBinding,
     resetBinding,
@@ -135,3 +140,6 @@ export const useShortcutsStore = defineStore("shortcuts", () => {
     flush,
   };
 });
+
+// Re-exported here so callers don't have to import shortcutModel directly.
+export { parseCombo, stringifyCombo };

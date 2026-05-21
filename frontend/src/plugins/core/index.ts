@@ -1,0 +1,11 @@
+export * from "./types";
+export { pluginManager, type PluginUIAdapter } from "./PluginManager";
+export { commandRegistry, type CommandRecord } from "./CommandRegistry";
+export { keybindingRegistry } from "./KeybindingRegistry";
+export { menuRegistry, type MenuItemRecord, type TopMenuRecord } from "./MenuRegistry";
+export { editorRegistry, type EditorRecord } from "./EditorRegistry";
+export { sidePanelRegistry, type SidePanelRecord } from "./SidePanelRegistry";
+export { statusBarRegistry, type StatusBarRecord } from "./StatusBarRegistry";
+export { settingsRegistry, type SettingsRecord } from "./SettingsRegistry";
+export { modalLayer, type ActiveModal } from "./ModalLayer";
+export { eventBus } from "./events";

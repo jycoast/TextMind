@@ -344,6 +344,93 @@ export namespace main {
 	        this.error = source["error"];
 	    }
 	}
+	export class PluginCallResult {
+	    ok: boolean;
+	    error?: string;
+	    result?: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new PluginCallResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ok = source["ok"];
+	        this.error = source["error"];
+	        this.result = source["result"];
+	    }
+	}
+	export class PluginManifestDTO {
+	    id: string;
+	    name: string;
+	    version: string;
+	    description?: string;
+	    author?: string;
+	    entryUrl?: string;
+	    entry?: string;
+	    permissions?: string[];
+	    activationEvents?: string[];
+	    builtin: boolean;
+	    enabled: boolean;
+	    installPath?: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PluginManifestDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.version = source["version"];
+	        this.description = source["description"];
+	        this.author = source["author"];
+	        this.entryUrl = source["entryUrl"];
+	        this.entry = source["entry"];
+	        this.permissions = source["permissions"];
+	        this.activationEvents = source["activationEvents"];
+	        this.builtin = source["builtin"];
+	        this.enabled = source["enabled"];
+	        this.installPath = source["installPath"];
+	        this.error = source["error"];
+	    }
+	}
+	export class PluginListDTO {
+	    plugins: PluginManifestDTO[];
+	    root: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PluginListDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.plugins = this.convertValues(source["plugins"], PluginManifestDTO);
+	        this.root = source["root"];
+	        this.error = source["error"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class SaveFileResult {
 	    name: string;
 	    path: string;
@@ -575,6 +662,8 @@ export namespace persist {
 	    dirty?: boolean;
 	    encoding?: string;
 	    hasBOM?: boolean;
+	    viewState?: number[];
+	    editorId?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new TabSnapshot(source);
@@ -589,6 +678,8 @@ export namespace persist {
 	        this.dirty = source["dirty"];
 	        this.encoding = source["encoding"];
 	        this.hasBOM = source["hasBOM"];
+	        this.viewState = source["viewState"];
+	        this.editorId = source["editorId"];
 	    }
 	}
 
