@@ -71,6 +71,48 @@ export namespace main {
 	        this.created = source["created"];
 	    }
 	}
+	export class COSConfigDTO {
+	    secretId: string;
+	    secretKey: string;
+	    region: string;
+	    bucket: string;
+	    keyPrefix: string;
+	    customDomain: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new COSConfigDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.secretId = source["secretId"];
+	        this.secretKey = source["secretKey"];
+	        this.region = source["region"];
+	        this.bucket = source["bucket"];
+	        this.keyPrefix = source["keyPrefix"];
+	        this.customDomain = source["customDomain"];
+	    }
+	}
+	export class COSUploadResult {
+	    url: string;
+	    key: string;
+	    contentType?: string;
+	    size?: number;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new COSUploadResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.url = source["url"];
+	        this.key = source["key"];
+	        this.contentType = source["contentType"];
+	        this.size = source["size"];
+	        this.error = source["error"];
+	    }
+	}
 	export class ChatMessageDTO {
 	    role: string;
 	    content: string;

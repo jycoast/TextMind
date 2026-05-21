@@ -81,6 +81,7 @@ onMounted(async () => {
       @open-file="(p) => commandRegistry.execute('file.openByPath', p)"
     />
     <ExplorerSplitter />
+    <PluginSidePanels position="left" />
     <div class="editor-pane flex-1 min-w-0 min-h-0 flex flex-col">
       <TabBar />
       <EditorHost />

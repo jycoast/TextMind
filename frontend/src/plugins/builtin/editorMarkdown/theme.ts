@@ -98,11 +98,28 @@ export const themedStyles = /* css */ `
   margin: 1.2em 0;
 }
 
+/* Tailwind's preflight resets list-style on every ul/ol globally, which
+   wipes out the bullets/numbers we want inside the editor. Re-assert them
+   here so Markdown lists render with the expected markers in WYSIWYG. */
 .tm-milkdown-host .ProseMirror ul,
 .tm-milkdown-host .ProseMirror ol {
   padding-left: 1.6em;
   margin: 0.6em 0;
+  list-style-position: outside;
 }
+.tm-milkdown-host .ProseMirror ul { list-style-type: disc; }
+.tm-milkdown-host .ProseMirror ol { list-style-type: decimal; }
+.tm-milkdown-host .ProseMirror ul ul { list-style-type: circle; }
+.tm-milkdown-host .ProseMirror ul ul ul { list-style-type: square; }
+.tm-milkdown-host .ProseMirror ol ol { list-style-type: lower-alpha; }
+.tm-milkdown-host .ProseMirror ol ol ol { list-style-type: lower-roman; }
+
+.tm-milkdown-host .ProseMirror li {
+  /* Tailwind also resets display on li in some configurations; this keeps
+     the bullet aligned with the first line of text. */
+  display: list-item;
+}
+
 .tm-milkdown-host .ProseMirror ul ul,
 .tm-milkdown-host .ProseMirror ol ol,
 .tm-milkdown-host .ProseMirror ul ol,

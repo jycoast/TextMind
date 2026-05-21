@@ -138,6 +138,16 @@ export const backend = {
     permissions: string[],
   ): Promise<main.SimpleResult> =>
     App.GrantPluginPermissions(pluginId, permissions),
+
+  getCOSConfig: (): Promise<main.COSConfigDTO> => App.GetCOSConfig(),
+  saveCOSConfig: (cfg: main.COSConfigDTO): Promise<main.SimpleResult> =>
+    App.SaveCOSConfig(cfg),
+  uploadImageToCOS: (
+    filename: string,
+    contentType: string,
+    base64Data: string,
+  ): Promise<main.COSUploadResult> =>
+    App.UploadImageToCOS(filename, contentType, base64Data),
 };
 
 export function isBackendReady(): boolean {

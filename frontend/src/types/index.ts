@@ -125,5 +125,30 @@ export interface EditorAdapter {
    * Milkdown bar, etc.). Returns true if the widget was opened.
    */
   triggerFind?: () => boolean;
+  /**
+   * Subscribe to native clipboard paste events on the editor surface.
+   * Handlers run before the editor inserts the clipboard content. Returning
+   * `true` (or calling preventDefault on the event manually) means the
+   * handler consumed the event — the adapter must skip its default insert.
+   */
+  onPaste?: (handler: (ev: ClipboardEvent) => boolean | void) => void;
+  /**
+   * Insert plain text (markdown allowed) at the current cursor / selection.
+   * Returns true when something was inserted, false if the editor wasn't
+   * ready yet.
+   */
+  insertText?: (text: string) => boolean;
+  /**
+   * Reveal a 1-based line in the document. Used by line-addressable editors
+   * (Monaco) to jump from the outline panel. Returns true on success.
+   */
+  revealLine?: (line: number, col?: number) => boolean;
+  /**
+   * Reveal the Nth heading node (0-based) in the document. Used by editors
+   * that have no line concept (Milkdown / ProseMirror) but do have a doc
+   * tree. The outline panel passes the same `index` it parsed out of the
+   * markdown source so both editors land on the same heading.
+   */
+  revealNthHeading?: (index: number) => boolean;
   dispose: () => void;
 }

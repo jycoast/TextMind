@@ -50,6 +50,10 @@ export function GetAppVersion() {
   return window['go']['main']['App']['GetAppVersion']();
 }
 
+export function GetCOSConfig() {
+  return window['go']['main']['App']['GetCOSConfig']();
+}
+
 export function GetConversation(arg1) {
   return window['go']['main']['App']['GetConversation'](arg1);
 }
@@ -142,6 +146,10 @@ export function SaveAIConfig(arg1) {
   return window['go']['main']['App']['SaveAIConfig'](arg1);
 }
 
+export function SaveCOSConfig(arg1) {
+  return window['go']['main']['App']['SaveCOSConfig'](arg1);
+}
+
 export function SaveKeymapConfig(arg1) {
   return window['go']['main']['App']['SaveKeymapConfig'](arg1);
 }
@@ -196,4 +204,8 @@ export function ToInListSelected(arg1) {
 
 export function UninstallExternalPlugin(arg1) {
   return window['go']['main']['App']['UninstallExternalPlugin'](arg1);
+}
+
+export function UploadImageToCOS(arg1, arg2, arg3) {
+  return window['go']['main']['App']['UploadImageToCOS'](arg1, arg2, arg3);
 }

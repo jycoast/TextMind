@@ -123,6 +123,23 @@ export function createMonacoAdapter(
   };
   host.addEventListener("contextmenu", contextMenuListener);
 
+  // Paste interception — capture phase so we run before Monaco's default
+  // handler. If a handler returns true / preventDefault we swallow the
+  // event entirely and skip Monaco's insert.
+  const pasteHandlers: Array<(ev: ClipboardEvent) => boolean | void> = [];
+  const pasteListener = (ev: ClipboardEvent) => {
+    if (pasteHandlers.length === 0) return;
+    for (const h of pasteHandlers) {
+      const consumed = h(ev) === true || ev.defaultPrevented;
+      if (consumed) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        return;
+      }
+    }
+  };
+  host.addEventListener("paste", pasteListener, true);
+
   const selectionsChangeHandlers: Array<(count: number) => void> = [];
   const cursorChangeHandlers: Array<() => void> = [];
   editor.onDidChangeCursorSelection(() => {
@@ -312,8 +329,33 @@ export function createMonacoAdapter(
       return true;
     },
 
+    onPaste: (handler) => {
+      pasteHandlers.push(handler);
+    },
+
+    insertText: (text: string) => {
+      const sel = editor.getSelection();
+      if (!sel) return false;
+      editor.executeEdits("TextMind.insertText", [{ range: sel, text }]);
+      editor.focus();
+      return true;
+    },
+
+    revealLine: (line: number, col?: number) => {
+      const model = editor.getModel();
+      if (!model) return false;
+      const lineMax = model.getLineCount();
+      const target = Math.min(lineMax, Math.max(1, Math.floor(line)));
+      const column = Math.max(1, Math.floor(col ?? 1));
+      editor.setPosition({ lineNumber: target, column });
+      editor.revealLineInCenter(target, monaco.editor.ScrollType.Smooth);
+      editor.focus();
+      return true;
+    },
+
     dispose: () => {
       host.removeEventListener("contextmenu", contextMenuListener);
+      host.removeEventListener("paste", pasteListener, true);
       editor.dispose();
     },
   };

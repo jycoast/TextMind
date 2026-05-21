@@ -27,6 +27,7 @@ type App struct {
 	aiConfigPath     string
 	aiConvPath       string
 	keymapConfigPath string
+	cosConfigPath    string
 	aiMu             sync.Mutex
 	aiStreams        streamRegistry
 	version          string
@@ -94,6 +95,7 @@ func NewApp(logger *log.Logger, launchPath string) *App {
 		aiConfigPath:     aiConfigFilePath(logger),
 		aiConvPath:       aiConversationsFilePath(logger),
 		keymapConfigPath: keymapConfigFilePath(logger),
+		cosConfigPath:    cosConfigFilePath(logger),
 		launchPath:       strings.TrimSpace(launchPath),
 	}
 }
@@ -140,6 +142,15 @@ func aiConversationsFilePath(logger *log.Logger) string {
 	if err != nil {
 		logger.Printf("user config dir unavailable, using local ai-conversations.json: %v", err)
 		return "TextMind-ai-conversations.json"
+	}
+	return p
+}
+
+func cosConfigFilePath(logger *log.Logger) string {
+	p, err := persist.COSConfigPath()
+	if err != nil {
+		logger.Printf("user config dir unavailable, using local cos-config.json: %v", err)
+		return "TextMind-cos-config.json"
 	}
 	return p
 }

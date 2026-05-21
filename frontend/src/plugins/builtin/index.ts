@@ -7,6 +7,8 @@ import { shortcutsPlugin } from "./shortcuts";
 import { editorMonacoPlugin } from "./editorMonaco";
 import { editorMarkdownPlugin } from "./editorMarkdown";
 import { pluginsUiPlugin } from "./pluginsUi";
+import { cosUploadPlugin } from "./cosUpload";
+import { outlinePlugin } from "./outline";
 import type { Plugin } from "@/plugins/core";
 
 /**
@@ -25,6 +27,8 @@ export const builtinPlugins: Plugin[] = [
   updaterPlugin,
   shortcutsPlugin,
   pluginsUiPlugin,
+  cosUploadPlugin,
+  outlinePlugin,
 ];
 
 export {
@@ -37,4 +41,6 @@ export {
   editorMonacoPlugin,
   editorMarkdownPlugin,
   pluginsUiPlugin,
+  cosUploadPlugin,
+  outlinePlugin,
 };

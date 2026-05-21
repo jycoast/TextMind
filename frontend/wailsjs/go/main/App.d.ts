@@ -28,6 +28,8 @@ export function GetAIConfig():Promise<main.AIConfigDTO>;
 
 export function GetAppVersion():Promise<string>;
 
+export function GetCOSConfig():Promise<main.COSConfigDTO>;
+
 export function GetConversation(arg1:string):Promise<main.ConversationDTO>;
 
 export function GetKeymapConfig():Promise<main.KeymapConfigDTO>;
@@ -74,6 +76,8 @@ export function RenameConversation(arg1:string,arg2:string):Promise<main.SimpleR
 
 export function SaveAIConfig(arg1:main.AIConfigDTO):Promise<main.SimpleResult>;
 
+export function SaveCOSConfig(arg1:main.COSConfigDTO):Promise<main.SimpleResult>;
+
 export function SaveKeymapConfig(arg1:main.KeymapConfigDTO):Promise<main.SimpleResult>;
 
 export function SaveSession(arg1:main.SessionPayload):Promise<boolean>;
@@ -101,3 +105,5 @@ export function TestAIConnection(arg1:main.AIConfigDTO):Promise<main.SimpleResul
 export function ToInListSelected(arg1:string):Promise<main.ToolResult>;
 
 export function UninstallExternalPlugin(arg1:string):Promise<main.SimpleResult>;
+
+export function UploadImageToCOS(arg1:string,arg2:string,arg3:string):Promise<main.COSUploadResult>;

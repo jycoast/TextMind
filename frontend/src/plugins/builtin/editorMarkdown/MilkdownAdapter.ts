@@ -5,10 +5,18 @@
 // methods need to buffer their first call (initial setValue / setViewState)
 // until create() resolves. Until then getValue returns the pending markdown.
 
-import { Editor, defaultValueCtx, rootCtx, editorViewCtx } from "@milkdown/core";
+import {
+  Editor,
+  defaultValueCtx,
+  rootCtx,
+  editorViewCtx,
+  parserCtx,
+} from "@milkdown/core";
+import { Slice } from "@milkdown/prose/model";
 import { commonmark } from "@milkdown/preset-commonmark";
 import { gfm } from "@milkdown/preset-gfm";
 import { listener, listenerCtx } from "@milkdown/plugin-listener";
+import { history } from "@milkdown/plugin-history";
 import { getMarkdown, replaceAll } from "@milkdown/utils";
 import { TextSelection } from "@milkdown/prose/state";
 import { themedStyles } from "./theme";
@@ -85,6 +93,23 @@ export function createMilkdownAdapter(
   };
   inner.addEventListener("contextmenu", onContextMenuListener);
 
+  // Paste handlers fire BEFORE ProseMirror's default insert so plugins like
+  // the COS image uploader can hijack the event, upload the blob async, and
+  // call insertText() with the resulting markdown.
+  const pasteHandlers: Array<(ev: ClipboardEvent) => boolean | void> = [];
+  const onPasteListener = (ev: ClipboardEvent) => {
+    if (pasteHandlers.length === 0) return;
+    for (const h of pasteHandlers) {
+      const consumed = h(ev) === true || ev.defaultPrevented;
+      if (consumed) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        return;
+      }
+    }
+  };
+  inner.addEventListener("paste", onPasteListener, true);
+
   function emitCursor() {
     for (const h of cursorHandlers) h();
   }
@@ -115,6 +140,7 @@ export function createMilkdownAdapter(
       })
       .use(commonmark)
       .use(gfm)
+      .use(history)
       .use(listener);
 
     try {
@@ -340,10 +366,85 @@ export function createMilkdownAdapter(
       return true;
     },
 
+    onPaste: (handler) => {
+      pasteHandlers.push(handler);
+    },
+
+    revealNthHeading: (index: number) => {
+      if (!editor || !booted) return false;
+      const target = Math.max(0, Math.floor(index));
+      try {
+        const view = getView();
+        let count = 0;
+        let hitPos = -1;
+        view.state.doc.descendants((node, pos) => {
+          // Returning false from descendants only skips descending into the
+          // current node's children, NOT the whole traversal. Without this
+          // short-circuit, every subsequent heading would re-satisfy
+          // `count === target` (count was never incremented on the match)
+          // and hitPos would end up at the LAST heading in the doc.
+          if (hitPos >= 0) return false;
+          if (node.type.name !== "heading") return true;
+          if (count === target) {
+            hitPos = pos;
+            return false;
+          }
+          count += 1;
+          return true;
+        });
+        if (hitPos < 0) return false;
+        // ProseMirror heading nodes contain inline content starting at
+        // pos+1; placing the selection there keeps the caret inside the
+        // heading rather than at the block boundary.
+        const inside = hitPos + 1;
+        const sel = TextSelection.create(view.state.doc, inside);
+        view.dispatch(view.state.tr.setSelection(sel));
+        const coords = view.coordsAtPos(inside);
+        const hostRect = inner.getBoundingClientRect();
+        const offsetTop = coords.top - hostRect.top + inner.scrollTop;
+        inner.scrollTo({
+          top: Math.max(0, offsetTop - 24),
+          behavior: "smooth",
+        });
+        return true;
+      } catch (err) {
+        console.warn("[milkdown] revealNthHeading:", err);
+        return false;
+      }
+    },
+
+    insertText: (text: string) => {
+      if (!editor || !booted || !text) return false;
+      try {
+        editor.action((ctx) => {
+          const view = ctx.get(editorViewCtx);
+          const parser = ctx.get(parserCtx);
+          // Run the same markdown parser Milkdown uses for the initial doc,
+          // then drop the wrapping <doc> and splice its content directly into
+          // the current selection. This makes `![alt](url)` become a real
+          // image node rather than literal text.
+          const parsed = parser(text);
+          if (parsed) {
+            const slice = new Slice(parsed.content, 0, 0);
+            view.dispatch(
+              view.state.tr.replaceSelection(slice).scrollIntoView(),
+            );
+          } else {
+            view.dispatch(view.state.tr.insertText(text));
+          }
+        });
+        return true;
+      } catch (err) {
+        console.warn("[milkdown] insertText:", err);
+        return false;
+      }
+    },
+
     dispose: () => {
       if (disposed) return;
       disposed = true;
       inner.removeEventListener("contextmenu", onContextMenuListener);
+      inner.removeEventListener("paste", onPasteListener, true);
       if (findWidget) {
         findWidget.destroy();
         findWidget = null;
