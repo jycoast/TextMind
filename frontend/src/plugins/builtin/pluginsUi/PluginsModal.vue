@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { backend } from "@/api/backend";
-import { pluginManager } from "@/plugins/core";
+import { modalLayer, pluginManager, settingsRegistry } from "@/plugins/core";
 import type { main } from "@wails/go/models";
+import PluginSettingsModal from "./PluginSettingsModal.vue";
+
+const SETTINGS_MODAL_ID = "textmind.plugins-ui.settings-modal";
 
 defineProps<{ visible: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -15,6 +18,27 @@ const busyId = ref<string>("");
 const builtinList = computed(() =>
   pluginManager.list().filter((m) => m.builtin),
 );
+
+const pagesRef = settingsRegistry.list();
+const pluginsWithSettings = computed(
+  () => new Set(pagesRef.value.map((p) => p.pluginId)),
+);
+
+function hasSettings(pluginId: string): boolean {
+  return pluginsWithSettings.value.has(pluginId);
+}
+
+function openPluginSettings(pluginId: string) {
+  modalLayer.open({
+    id: SETTINGS_MODAL_ID,
+    component: PluginSettingsModal,
+    props: {
+      visible: true,
+      initialPluginId: pluginId,
+      onClose: () => modalLayer.close(SETTINGS_MODAL_ID),
+    },
+  });
+}
 
 async function refresh() {
   try {
@@ -167,6 +191,19 @@ async function openFolder() {
               {{ m.id }}
             </div>
           </div>
+          <button
+            v-if="hasSettings(m.id)"
+            type="button"
+            class="h-6 px-2 text-[12px] rounded-sm cursor-pointer border"
+            :style="{
+              background: 'transparent',
+              borderColor: 'var(--hairline)',
+              color: 'var(--text)',
+            }"
+            @click="openPluginSettings(m.id)"
+          >
+            设置
+          </button>
           <span
             class="text-[11px] px-2 py-0.5 rounded-sm"
             :style="{
@@ -240,6 +277,20 @@ async function openFolder() {
               {{ p.error }}
             </div>
           </div>
+          <button
+            v-if="hasSettings(p.id)"
+            type="button"
+            class="h-6 px-2 text-[12px] rounded-sm cursor-pointer border"
+            :style="{
+              background: 'transparent',
+              borderColor: 'var(--hairline)',
+              color: 'var(--text)',
+            }"
+            :disabled="busyId === p.id"
+            @click="openPluginSettings(p.id)"
+          >
+            设置
+          </button>
           <button
             type="button"
             class="h-6 px-2 text-[12px] rounded-sm cursor-pointer border"

@@ -39,6 +39,21 @@ export interface CommandSpec {
   handler: (...args: unknown[]) => unknown | Promise<unknown>;
 }
 
+export interface SubmenuItem {
+  /** Stable id; used as v-for key. */
+  id: string;
+  /** Visible label. */
+  label: string;
+  /** Optional native tooltip (e.g. full path for recent files). */
+  title?: string;
+  /** Command id executed on click. If omitted the item is inert. */
+  commandId?: string;
+  /** Args forwarded to the command handler. */
+  commandArgs?: unknown[];
+  /** Disabled state; defaults to false. */
+  disabled?: boolean;
+}
+
 export interface MenuItemSpec {
   id: string;
   menu: string;
@@ -50,6 +65,14 @@ export interface MenuItemSpec {
   visible?: () => boolean;
   separatorBefore?: boolean;
   submenu?: string;
+  /**
+   * When set, the item is rendered as a hover-flyout parent. The provider
+   * is invoked each time the parent menu opens, so it can return a fresh,
+   * dynamic list (recent files, open editors, etc.). Returning an empty
+   * array shows an "暂无记录" empty-state. When this is set, `commandId`
+   * on the parent item is ignored (the row is hover-only).
+   */
+  submenuProvider?: () => SubmenuItem[];
 }
 
 export interface TopMenuSpec {

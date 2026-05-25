@@ -33,15 +33,6 @@ export const outlinePlugin: Plugin = {
       },
     });
 
-    ctx.menus.registerItem({
-      id: "settings.menu.outline",
-      menu: "topbar.settings",
-      group: "a",
-      order: 5,
-      label: "文档大纲",
-      commandId: "outline.toggle",
-    });
-
     // Status bar entry visible only on markdown tabs; clicking toggles the
     // panel and reflects whether the panel is currently open.
     const OutlineToggleButton = defineComponent({

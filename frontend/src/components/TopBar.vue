@@ -53,7 +53,11 @@ defineExpose({ close });
           :aria-label="`${m.label}菜单`"
           @click.stop="close"
         >
-          <DynamicMenu :menu-id="`topbar.${m.id}`" variant="topbar" />
+          <DynamicMenu
+            :menu-id="`topbar.${m.id}`"
+            variant="topbar"
+            @close="close"
+          />
         </div>
       </div>
       <span class="ml-auto flex items-center pr-1 gap-1">

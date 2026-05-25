@@ -5,13 +5,17 @@ import PluginsModal from "./PluginsModal.vue";
 const PLUGIN_ID = "textmind.plugins-ui";
 const MODAL_ID = "textmind.plugins-ui.modal";
 
+// The plugin manager is the single entry point for everything plugin-
+// related. Per-plugin configuration is reached by clicking the "设置"
+// button on a row inside that dialog (only shown for plugins that have
+// registered a SettingsPageSpec via ctx.settings.registerPage).
 export const pluginsUiPlugin: Plugin = {
   manifest: {
     id: PLUGIN_ID,
     name: "Plugins Manager",
     version: "1.0.0",
     builtin: true,
-    description: "Browse, enable / disable, and uninstall plugins.",
+    description: "Browse, enable / disable, configure, and uninstall plugins.",
   },
   async activate(ctx: PluginContext) {
     const menus = useMenusStore();

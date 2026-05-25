@@ -246,33 +246,24 @@ export const filesPlugin: Plugin = {
       commandId: "file.openFolder",
     });
 
-    // Recent files submenu - rendered as a custom component via a synthetic
-    // command. We slot it in by registering a side panel-style item.
-    const recentHostId = "file.menu.recent";
+    // Recent files: hover-flyout that lists the persisted recent paths.
+    // The submenuProvider is called every time the user re-opens the
+    // submenu, so newly opened files show up without a manual refresh.
     ctx.menus.registerItem({
-      id: recentHostId,
+      id: "file.menu.recent",
       menu: "topbar.file",
       group: "b-recent",
       separatorBefore: true,
       order: 50,
-      label: "最近打开文件 ›",
-      commandId: "file.openRecentMenu",
-    });
-    // command to inline open recent submenu; opens a popover modal for now
-    ctx.commands.register({
-      id: "file.openRecentMenu",
-      title: "最近打开文件",
-      category: "文件",
-      bindable: false,
-      handler: () => {
-        // toggle dropdown - approximate by listing top recent via center notice
-        const list = recents.files.slice(0, 5);
-        if (list.length === 0) {
-          ui.showTip("尚无最近打开文件");
-          return;
-        }
-        ui.showTip(`最近: ${list.map((f) => f.name).join(" | ")}`);
-      },
+      label: "最近打开文件",
+      submenuProvider: () =>
+        recents.files.map((f) => ({
+          id: f.path,
+          label: f.name || f.path,
+          title: f.path,
+          commandId: "file.openByPath",
+          commandArgs: [f.path],
+        })),
     });
 
     // ---- Edit menu items ----

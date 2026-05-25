@@ -6,6 +6,10 @@
 // hook every editor instance (Monaco + Milkdown) once it mounts. The paste
 // handler is a no-op for non-markdown tabs and a no-op when COS isn't
 // configured — both keep the user's normal paste behavior untouched.
+//
+// Configuration UI: this plugin doesn't own a top-level menu entry. It
+// contributes a `SettingsPageSpec` via ctx.settings.registerPage, and the
+// "插件设置..." dialog (provided by the pluginsUi plugin) hosts the panel.
 
 import { defineAsyncComponent } from "vue";
 import type { Plugin, PluginContext } from "@/plugins/core";
@@ -15,9 +19,9 @@ import { backend } from "@/api/backend";
 import type { EditorAdapter, Tab } from "@/types";
 
 const PLUGIN_ID = "textmind.cos-upload";
-const SETTINGS_MODAL_ID = "textmind.cos-upload.settings";
+const SETTINGS_PAGE_ID = "textmind.cos-upload.settings";
 
-const COSSettingsModal = defineAsyncComponent(() => import("./COSSettingsModal.vue"));
+const COSSettingsPanel = defineAsyncComponent(() => import("./COSSettingsPanel.vue"));
 
 function isMarkdownTab(tab: Tab | null | undefined): boolean {
   if (!tab) return false;
@@ -104,7 +108,9 @@ async function handlePastedImages(adapter: EditorAdapter, files: File[]) {
   if (!cfg.region) missing.push("Region");
   if (!cfg.bucket) missing.push("Bucket");
   if (missing.length > 0) {
-    ui.showTip(`未配置 COS：${missing.join(" / ")}，请在「设置 → COS 图片上传」中填写`);
+    ui.showTip(
+      `未配置 COS：${missing.join(" / ")}，请在「设置 → 插件管理 → 腾讯云 COS 图片上传 → 设置」中填写`,
+    );
     return;
   }
 
@@ -165,27 +171,13 @@ export const cosUploadPlugin: Plugin = {
     const tabs = useTabsStore();
     if (tabs.adapter) attachPasteHandler(tabs.adapter);
 
-    // Settings command + menu entry.
-    ctx.commands.register({
-      id: "cos.openSettings",
-      title: "腾讯云 COS 图片上传 设置",
-      category: "设置",
-      bindable: false,
-      handler: () => {
-        ctx.ui.openModal({
-          id: SETTINGS_MODAL_ID,
-          component: COSSettingsModal,
-        });
-      },
-    });
-
-    ctx.menus.registerItem({
-      id: "settings.menu.cosUpload",
-      menu: "topbar.settings",
-      group: "c",
-      order: 30,
-      label: "COS 图片上传…",
-      commandId: "cos.openSettings",
+    // Expose configuration as a settings page; the "插件设置..." dialog
+    // hosts the panel and shares its modal chrome with other plugins.
+    ctx.settings.registerPage({
+      id: SETTINGS_PAGE_ID,
+      title: "腾讯云 COS 图片上传",
+      order: 10,
+      component: COSSettingsPanel,
     });
   },
 };
