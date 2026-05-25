@@ -14,6 +14,7 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
 )
 
 //go:embed frontend/dist
@@ -61,7 +62,18 @@ func main() {
 			Assets: assetFS,
 		},
 		BackgroundColour: &options.RGBA{R: 18, G: 18, B: 20, A: 1},
-		OnStartup:        app.startup,
+		// Frameless removes the OS-native title bar so the frontend can render
+		// a fully custom title bar (see components/TopBar.vue + WindowControls.vue).
+		// Wails still provides edge resize hit-zones in this mode, so we
+		// intentionally leave DisableResize unset.
+		Frameless: true,
+		Windows: &windows.Options{
+			// Let the webview's own chrome (scrollbars, native context-menu
+			// outline) follow the system; useThemeStore drives the active
+			// app theme via WindowSetLightTheme / WindowSetDarkTheme at runtime.
+			Theme: windows.SystemDefault,
+		},
+		OnStartup: app.startup,
 		OnShutdown: func(ctx context.Context) {
 			host.Shutdown(ctx)
 			app.shutdown(ctx)

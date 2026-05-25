@@ -113,6 +113,21 @@ body.is-resizing {
   background: var(--hover-bg);
 }
 
+/* Wails frameless drag regions. Apply .wails-drag to the title bar root and
+   to any flexible empty zone that should move the OS window when dragged;
+   apply .wails-no-drag to every interactive child (buttons, inputs, menus,
+   popovers) so they remain clickable and never trigger a window move. Wails
+   v2's runtime reads the --wails-draggable CSS variable per element and
+   forwards drag intent to the native window. */
+.wails-drag {
+  --wails-draggable: drag;
+}
+
+.wails-no-drag,
+.wails-no-drag * {
+  --wails-draggable: no-drag;
+}
+
 .tm-menu-panel {
   position: absolute;
   top: calc(100% + 4px);
