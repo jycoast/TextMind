@@ -2,6 +2,7 @@
 import { storeToRefs } from "pinia";
 import { useMenusStore } from "@/stores/menus";
 import { useThemeStore } from "@/stores/theme";
+import type { Theme } from "@/types";
 import ThemeSubmenu from "./ThemeSubmenu.vue";
 
 const emit = defineEmits<{
@@ -42,7 +43,7 @@ function onPanelMouseLeave() {
   menus.closeSubMenu("theme");
 }
 
-function pickTheme(next: "dark" | "light") {
+function pickTheme(next: Theme) {
   themeStore.setTheme(next);
   menus.closeAllTopMenus();
 }

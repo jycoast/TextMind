@@ -2,38 +2,85 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme presets owned by the textmind.theme plugin.
+   The plugin only flips body[data-theme]; the actual palette values live here
+   so that every component, the Milkdown editor and Monaco's tiny themes can
+   stay theme-agnostic and just read CSS variables.
+   - dark  = "墨夜" (Ink Night): deep blue-grey base, cool azure accent
+   - light = "晨纸" (Morning Paper): paper white base, GitHub-style azure accent
+*/
 :root {
   color-scheme: dark;
-  --bg: #121214;
-  --text: #c8c8c8;
-  --muted: #6b6f78;
-  --accent: #6b8cae;
+  --bg: #0e1116;
+  --text: #e6e6e6;
+  --muted: #7d848f;
+  --accent: #4493f8;
   --hairline: rgba(255, 255, 255, 0.08);
-  --panel: #18181a;
-  --panel-elevated: #17191f;
-  --panel-input: #101217;
-  --sidebar-bg: #17181d;
-  --overlay: rgba(0, 0, 0, 0.45);
+  --panel: #161b22;
+  --panel-elevated: #1c232c;
+  --panel-input: #0b0e13;
+  --sidebar-bg: #131820;
+  --overlay: rgba(0, 0, 0, 0.5);
   --hover-bg: rgba(255, 255, 255, 0.06);
-  --active-row-bg: rgba(107, 140, 174, 0.18);
-  --selection-bg: rgba(75, 116, 176, 0.7);
+  --active-row-bg: rgba(68, 147, 248, 0.18);
+  --selection-bg: rgba(68, 147, 248, 0.45);
 }
 
 body[data-theme="light"] {
   color-scheme: light;
   --bg: #ffffff;
-  --text: #1f2733;
-  --muted: #647084;
-  --accent: #3b6ea8;
-  --hairline: rgba(15, 23, 42, 0.14);
-  --panel: #ffffff;
+  --text: #1f2328;
+  --muted: #656d76;
+  --accent: #0969da;
+  --hairline: rgba(31, 35, 40, 0.12);
+  --panel: #f6f8fa;
   --panel-elevated: #ffffff;
   --panel-input: #ffffff;
-  --sidebar-bg: #edf1f7;
-  --overlay: rgba(9, 12, 18, 0.28);
-  --hover-bg: rgba(15, 23, 42, 0.06);
-  --active-row-bg: rgba(59, 110, 168, 0.16);
-  --selection-bg: rgba(143, 181, 234, 0.85);
+  --sidebar-bg: #f6f8fa;
+  --overlay: rgba(31, 35, 40, 0.35);
+  --hover-bg: rgba(31, 35, 40, 0.06);
+  --active-row-bg: rgba(9, 105, 218, 0.12);
+  --selection-bg: rgba(9, 105, 218, 0.25);
+}
+
+/* "夜樱" (Sakura Night) — Dracula-inspired dark theme.
+   Deep slate-violet base with cherry-blossom pink + iris purple accents.
+   Picked for a softer, more atmospheric dark feel than the cool grey of 墨夜. */
+body[data-theme="sakura"] {
+  color-scheme: dark;
+  --bg: #282a36;
+  --text: #f8f8f2;
+  --muted: #6272a4;
+  --accent: #ff79c6;
+  --hairline: rgba(248, 248, 242, 0.1);
+  --panel: #21222c;
+  --panel-elevated: #343746;
+  --panel-input: #1e1f29;
+  --sidebar-bg: #21222c;
+  --overlay: rgba(0, 0, 0, 0.55);
+  --hover-bg: rgba(248, 248, 242, 0.06);
+  --active-row-bg: rgba(189, 147, 249, 0.2);
+  --selection-bg: rgba(189, 147, 249, 0.4);
+}
+
+/* "羊皮卷" (Parchment) — Solarized Light-inspired warm light theme.
+   Warm cream background that's softer on the eyes than pure white, with
+   classic Solarized blue accent and muted teal text. */
+body[data-theme="parchment"] {
+  color-scheme: light;
+  --bg: #fdf6e3;
+  --text: #586e75;
+  --muted: #93a1a1;
+  --accent: #268bd2;
+  --hairline: rgba(101, 123, 131, 0.2);
+  --panel: #eee8d5;
+  --panel-elevated: #fdf6e3;
+  --panel-input: #fdf6e3;
+  --sidebar-bg: #eee8d5;
+  --overlay: rgba(7, 54, 66, 0.32);
+  --hover-bg: rgba(101, 123, 131, 0.1);
+  --active-row-bg: rgba(38, 139, 210, 0.14);
+  --selection-bg: rgba(38, 139, 210, 0.28);
 }
 
 html,

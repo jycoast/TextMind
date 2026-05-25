@@ -5,7 +5,6 @@ import { useMenusStore } from "@/stores/menus";
 import { useRecentStore } from "@/stores/recent";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { useUiStore } from "@/stores/ui";
-import { useThemeStore } from "@/stores/theme";
 import { backend } from "@/api/backend";
 import { guessLanguageByFilename } from "@/composables/useLanguageGuess";
 import { pathBaseName } from "@/utils/normalize";
@@ -19,7 +18,7 @@ const manifest = {
   name: "Files & Workspace",
   version: "1.0.0",
   builtin: true,
-  description: "File I/O, recent files list, workspace folder, theme.",
+  description: "File I/O, recent files list, workspace folder.",
 } as const;
 
 async function openFileByPath(path: string, _ctx: PluginContext) {
@@ -53,7 +52,6 @@ export const filesPlugin: Plugin = {
     const recents = useRecentStore();
     const workspace = useWorkspaceStore();
     const ui = useUiStore();
-    const themeStore = useThemeStore();
 
     // ---- Commands ----
     ctx.commands.register({
@@ -191,22 +189,6 @@ export const filesPlugin: Plugin = {
       },
     });
 
-    ctx.commands.register({
-      id: "theme.setDark",
-      title: "切换至深色主题",
-      category: "外观",
-      bindable: false,
-      handler: () => themeStore.setTheme("dark"),
-    });
-
-    ctx.commands.register({
-      id: "theme.setLight",
-      title: "切换至浅色主题",
-      category: "外观",
-      bindable: false,
-      handler: () => themeStore.setTheme("light"),
-    });
-
     // ---- Top menus ----
     ctx.menus.registerTopMenu({ id: "file", label: "文件", order: 10 });
     ctx.menus.registerTopMenu({ id: "edit", label: "编辑", order: 20 });
@@ -289,24 +271,8 @@ export const filesPlugin: Plugin = {
       commandId: "edit.detectLanguage",
     });
 
-    // ---- Settings menu: theme entry (the rest is contributed by other plugins) ----
-    ctx.commands.register({
-      id: "theme.toggle",
-      title: "主题切换",
-      category: "外观",
-      bindable: false,
-      handler: () => {
-        const cur = useThemeStore().theme;
-        useThemeStore().setTheme(cur === "dark" ? "light" : "dark");
-      },
-    });
-    ctx.menus.registerItem({
-      id: "settings.menu.theme",
-      menu: "topbar.settings",
-      group: "a-theme",
-      order: 10,
-      label: () => `主题: ${useThemeStore().theme === "dark" ? "深色" : "浅色"}`,
-      commandId: "theme.toggle",
-    });
+    // Settings menu top-level is declared above; individual items (theme,
+    // shortcuts, AI, plugins, updater, ...) are contributed by their own
+    // plugins so that toggling a plugin off cleanly removes its entry.
   },
 };

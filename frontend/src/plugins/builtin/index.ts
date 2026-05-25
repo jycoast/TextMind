@@ -9,6 +9,7 @@ import { editorMarkdownPlugin } from "./editorMarkdown";
 import { pluginsUiPlugin } from "./pluginsUi";
 import { cosUploadPlugin } from "./cosUpload";
 import { outlinePlugin } from "./outline";
+import { themePlugin } from "./theme";
 import type { Plugin } from "@/plugins/core";
 
 /**
@@ -21,6 +22,7 @@ export const builtinPlugins: Plugin[] = [
   editorMonacoPlugin,
   editorMarkdownPlugin,
   filesPlugin,
+  themePlugin,
   textToolsPlugin,
   jsonPlugin,
   aiPlugin,
@@ -33,6 +35,7 @@ export const builtinPlugins: Plugin[] = [
 
 export {
   filesPlugin,
+  themePlugin,
   textToolsPlugin,
   jsonPlugin,
   aiPlugin,

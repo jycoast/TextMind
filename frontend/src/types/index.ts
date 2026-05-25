@@ -1,4 +1,12 @@
-export type Theme = "dark" | "light";
+// Theme identifiers persisted in localStorage["TextMind.theme"]. The active
+// list is owned by the textmind.theme built-in plugin (PRESETS in
+// plugins/builtin/theme/index.ts) and the palettes live in styles/base.css.
+// useThemeStore classifies each id as "light-mode" vs "dark-mode" so it can
+// pick the right Monaco theme (tiny-light / tiny-minimal) and Wails native
+// window decoration. When adding a new theme: extend this union, add a CSS
+// block in base.css, add a PRESETS entry, and (if it's a light theme) add
+// its id to LIGHT_THEMES in stores/theme.ts.
+export type Theme = "dark" | "light" | "sakura" | "parchment";
 
 export interface MonacoViewState {
   scrollTop: number;
