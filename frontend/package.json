@@ -14,14 +14,18 @@
     "@milkdown/ctx": "^7.21.1",
     "@milkdown/plugin-history": "^7.21.1",
     "@milkdown/plugin-listener": "^7.21.1",
+    "@milkdown/plugin-math": "^7.5.9",
+    "@milkdown/plugin-prism": "^7.19.0",
     "@milkdown/preset-commonmark": "^7.21.1",
     "@milkdown/preset-gfm": "^7.21.1",
     "@milkdown/prose": "^7.21.1",
     "@milkdown/theme-nord": "^7.21.1",
     "@milkdown/transformer": "^7.21.1",
     "@milkdown/utils": "^7.21.1",
+    "@vscode/markdown-it-katex": "^1.1.2",
     "@vueuse/core": "^11.3.0",
     "highlight.js": "^11.11.1",
+    "katex": "^0.17.0",
     "markdown-it": "^14.1.1",
     "monaco-editor": "^0.52.2",
     "pinia": "^2.3.0",
@@ -36,5 +40,12 @@
     "typescript": "^5.7.2",
     "vite": "^5.4.11",
     "vue-tsc": "^2.1.10"
+  },
+  "overrides": {
+    "@milkdown/plugin-prism": {
+      "@milkdown/ctx": "^7.21.1",
+      "@milkdown/utils": "^7.21.1",
+      "@milkdown/prose": "^7.21.1"
+    }
   }
 }

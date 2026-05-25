@@ -665,4 +665,20 @@ function closePanel() {
   border: 1px solid var(--hairline);
   padding: 4px 8px;
 }
+
+/* KaTeX: inherit chat text color and let wide block formulas scroll
+   horizontally instead of stretching the message bubble. */
+.markdown-body :deep(.katex) {
+  color: var(--text);
+  font-size: 1.05em;
+}
+.markdown-body :deep(.katex-display) {
+  margin: 6px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0;
+}
+.markdown-body :deep(.katex-error) {
+  color: #e06c75;
+}
 </style>

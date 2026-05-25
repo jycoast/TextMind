@@ -74,6 +74,50 @@ export const themedStyles = /* css */ `
   padding: 10px 12px;
   overflow-x: auto;
   margin: 0.8em 0;
+  /* Anchor for the language badge overlay (codeBlockLanguageView.ts). */
+  position: relative;
+}
+
+/* Editable language badge in the bottom-right corner of every code block.
+   Always rendered but kept quiet by default so it doesn't compete with the
+   code; brightens on hover or when the input is focused. */
+.tm-milkdown-host .ProseMirror pre .tm-md-codeblock-lang {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  display: flex;
+  align-items: center;
+  z-index: 2;
+  opacity: 0.35;
+  transition: opacity 0.15s ease-in-out;
+  user-select: none;
+}
+.tm-milkdown-host .ProseMirror pre:hover .tm-md-codeblock-lang,
+.tm-milkdown-host .ProseMirror pre .tm-md-codeblock-lang:focus-within {
+  opacity: 1;
+}
+.tm-milkdown-host .ProseMirror pre .tm-md-codeblock-lang__input {
+  width: 96px;
+  height: 18px;
+  padding: 0 6px;
+  font-family: Consolas, "Courier New", ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--muted);
+  background: var(--bg, var(--panel));
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  outline: none;
+  text-align: right;
+  caret-color: var(--accent);
+}
+.tm-milkdown-host .ProseMirror pre .tm-md-codeblock-lang__input::placeholder {
+  color: var(--muted);
+  opacity: 0.6;
+}
+.tm-milkdown-host .ProseMirror pre .tm-md-codeblock-lang__input:focus {
+  color: var(--text);
+  border-color: var(--accent);
 }
 .tm-milkdown-host .ProseMirror pre code {
   background: transparent;
@@ -82,6 +126,61 @@ export const themedStyles = /* css */ `
   font-size: 0.92em;
   color: var(--text);
 }
+
+/* Prism token coloring for code blocks (@milkdown/plugin-prism).
+   Mapped onto our CSS variables where possible so the palette stays
+   readable in both light and dark themes; falls back to VS Code
+   Dark+ inspired hues for token classes that have no semantic
+   equivalent in the app theme. Only takes effect for code blocks
+   whose language is registered in MilkdownAdapter.ts; unmarked
+   fences keep the plain var(--text) color. */
+.tm-milkdown-host .ProseMirror pre code .token.keyword,
+.tm-milkdown-host .ProseMirror pre code .token.builtin,
+.tm-milkdown-host .ProseMirror pre code .token.important {
+  color: var(--accent);
+}
+.tm-milkdown-host .ProseMirror pre code .token.string,
+.tm-milkdown-host .ProseMirror pre code .token.char,
+.tm-milkdown-host .ProseMirror pre code .token.regex,
+.tm-milkdown-host .ProseMirror pre code .token.attr-value {
+  color: #ce9178;
+}
+.tm-milkdown-host .ProseMirror pre code .token.comment,
+.tm-milkdown-host .ProseMirror pre code .token.prolog,
+.tm-milkdown-host .ProseMirror pre code .token.doctype,
+.tm-milkdown-host .ProseMirror pre code .token.cdata {
+  color: var(--muted);
+  font-style: italic;
+}
+.tm-milkdown-host .ProseMirror pre code .token.number,
+.tm-milkdown-host .ProseMirror pre code .token.boolean,
+.tm-milkdown-host .ProseMirror pre code .token.constant,
+.tm-milkdown-host .ProseMirror pre code .token.symbol {
+  color: #b5cea8;
+}
+.tm-milkdown-host .ProseMirror pre code .token.function,
+.tm-milkdown-host .ProseMirror pre code .token.class-name {
+  color: #dcdcaa;
+}
+.tm-milkdown-host .ProseMirror pre code .token.operator,
+.tm-milkdown-host .ProseMirror pre code .token.punctuation {
+  color: var(--text);
+  opacity: 0.85;
+}
+.tm-milkdown-host .ProseMirror pre code .token.tag,
+.tm-milkdown-host .ProseMirror pre code .token.selector,
+.tm-milkdown-host .ProseMirror pre code .token.attr-name,
+.tm-milkdown-host .ProseMirror pre code .token.property {
+  color: #569cd6;
+}
+.tm-milkdown-host .ProseMirror pre code .token.variable,
+.tm-milkdown-host .ProseMirror pre code .token.parameter {
+  color: #9cdcfe;
+}
+.tm-milkdown-host .ProseMirror pre code .token.deleted { color: #e06c75; }
+.tm-milkdown-host .ProseMirror pre code .token.inserted { color: #b5cea8; }
+.tm-milkdown-host .ProseMirror pre code .token.bold { font-weight: 600; }
+.tm-milkdown-host .ProseMirror pre code .token.italic { font-style: italic; }
 
 .tm-milkdown-host .ProseMirror blockquote {
   border-left: 3px solid var(--hairline);
@@ -153,6 +252,44 @@ export const themedStyles = /* css */ `
   border-radius: 4px;
   border: 1px solid var(--hairline);
 }
+
+/* Math nodes (KaTeX rendered via @milkdown/plugin-math).
+   Both inline and block formulas are atom nodes, so we draw a thin
+   selection ring when the node is selected to make it clear it's
+   editable as a unit (edit via source mode). */
+.tm-milkdown-host .ProseMirror span[data-type="math_inline"] {
+  display: inline-block;
+  padding: 0 2px;
+  color: var(--text);
+  cursor: default;
+}
+.tm-milkdown-host .ProseMirror span[data-type="math_inline"].ProseMirror-selectednode {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 3px;
+}
+.tm-milkdown-host .ProseMirror div[data-type="math_block"] {
+  display: block;
+  margin: 0.8em 0;
+  padding: 8px 12px;
+  background: var(--panel-input, var(--panel));
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  color: var(--text);
+  overflow-x: auto;
+  text-align: center;
+  cursor: default;
+}
+.tm-milkdown-host .ProseMirror div[data-type="math_block"].ProseMirror-selectednode {
+  outline: 1px solid var(--accent);
+}
+.tm-milkdown-host .ProseMirror .katex { color: var(--text); }
+.tm-milkdown-host .ProseMirror .katex-display {
+  margin: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.tm-milkdown-host .ProseMirror .katex-error { color: #e06c75; }
 
 .tm-milkdown-host .ProseMirror .task-list-item {
   list-style: none;

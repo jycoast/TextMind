@@ -17,6 +17,41 @@ import { commonmark } from "@milkdown/preset-commonmark";
 import { gfm } from "@milkdown/preset-gfm";
 import { listener, listenerCtx } from "@milkdown/plugin-listener";
 import { history } from "@milkdown/plugin-history";
+import { math, katexOptionsCtx } from "@milkdown/plugin-math";
+import { prism, prismConfig } from "@milkdown/plugin-prism";
+import { codeBlockLanguageView } from "./codeBlockLanguageView";
+import {
+  trailingParagraphPlugin,
+  codeBlockExitKeymap,
+} from "./blockExits";
+// Refractor language modules. Kept in sync with the extension table in
+// `frontend/src/composables/useLanguageGuess.ts` so that the languages users
+// can detect / set elsewhere in the app also have WYSIWYG syntax coloring.
+// Each `.default` is a Prism-style grammar factory expected by
+// refractor.register().
+import refractorMarkup from "refractor/markup";
+import refractorClike from "refractor/clike";
+import refractorJavascript from "refractor/javascript";
+import refractorTypescript from "refractor/typescript";
+import refractorJson from "refractor/json";
+import refractorSql from "refractor/sql";
+import refractorPython from "refractor/python";
+import refractorGo from "refractor/go";
+import refractorJava from "refractor/java";
+import refractorC from "refractor/c";
+import refractorCpp from "refractor/cpp";
+import refractorCsharp from "refractor/csharp";
+import refractorPhp from "refractor/php";
+import refractorRuby from "refractor/ruby";
+import refractorRust from "refractor/rust";
+import refractorBash from "refractor/bash";
+import refractorPowershell from "refractor/powershell";
+import refractorCss from "refractor/css";
+import refractorScss from "refractor/scss";
+import refractorLess from "refractor/less";
+import refractorYaml from "refractor/yaml";
+import refractorMarkdown from "refractor/markdown";
+import refractorIni from "refractor/ini";
 import { getMarkdown, replaceAll } from "@milkdown/utils";
 import { TextSelection } from "@milkdown/prose/state";
 import { themedStyles } from "./theme";
@@ -127,6 +162,47 @@ export function createMilkdownAdapter(
         // we lose the race against an early setValue() the second replaceAll
         // below still recovers, but seeding it here avoids an empty-flash.
         ctx.set(defaultValueCtx, pendingValue);
+        // KaTeX options: don't throw on malformed input (would otherwise
+        // tear down the WYSIWYG render whenever the user is mid-typing
+        // a formula like `$\frac`).
+        ctx.set(katexOptionsCtx.key, {
+          throwOnError: false,
+          errorColor: "#e06c75",
+          output: "html",
+        });
+        // Prism / refractor: register only the languages we explicitly
+        // support. The plugin silently skips code blocks whose `language`
+        // attr isn't registered (just a console.warn), which is exactly
+        // the "no auto-detect" behavior we want — unmarked fences stay
+        // as plain text. clike must be registered before c/cpp/csharp/java
+        // because those grammars `require` clike at registration time.
+        ctx.set(prismConfig.key, {
+          configureRefractor: (refractor) => {
+            refractor.register(refractorMarkup);
+            refractor.register(refractorClike);
+            refractor.register(refractorJavascript);
+            refractor.register(refractorTypescript);
+            refractor.register(refractorJson);
+            refractor.register(refractorSql);
+            refractor.register(refractorPython);
+            refractor.register(refractorGo);
+            refractor.register(refractorJava);
+            refractor.register(refractorC);
+            refractor.register(refractorCpp);
+            refractor.register(refractorCsharp);
+            refractor.register(refractorPhp);
+            refractor.register(refractorRuby);
+            refractor.register(refractorRust);
+            refractor.register(refractorBash);
+            refractor.register(refractorPowershell);
+            refractor.register(refractorCss);
+            refractor.register(refractorScss);
+            refractor.register(refractorLess);
+            refractor.register(refractorYaml);
+            refractor.register(refractorMarkdown);
+            refractor.register(refractorIni);
+          },
+        });
         ctx.get(listenerCtx)
           .markdownUpdated((_ctx, md, _prev) => {
             pendingValue = md;
@@ -141,7 +217,27 @@ export function createMilkdownAdapter(
       .use(commonmark)
       .use(gfm)
       .use(history)
-      .use(listener);
+      .use(listener)
+      // math must be registered AFTER commonmark/gfm so its remark plugin and
+      // schema nodes layer on top of the base markdown parser. Provides
+      // `$inline$` and `$$ block $$` LaTeX rendering via KaTeX.
+      .use(math)
+      // prism decorates the existing `code_block` node from commonmark with
+      // Prism token classes via ProseMirror decorations. Registered last
+      // so it sees the final schema.
+      .use(prism)
+      // codeBlockLanguageView replaces the default <pre>/<code> renderer with
+      // a NodeView that overlays an editable language badge in the bottom-
+      // right corner. Must come after prism so the contentDOM the prism
+      // plugin decorates is the <code> element produced here.
+      .use(codeBlockLanguageView)
+      // Without these, a code/math block at the end of the document traps
+      // the cursor: ProseMirror has nowhere to put the caret after it and
+      // arrow-down / clicking below the block does nothing. The trailing
+      // paragraph rule keeps an empty paragraph at the end of the doc;
+      // the keymap also lets Mod-/Shift-Enter pop out of a code block.
+      .use(trailingParagraphPlugin)
+      .use(codeBlockExitKeymap);
 
     try {
       await e.create();

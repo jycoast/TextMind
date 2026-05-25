@@ -1,9 +1,11 @@
 import MarkdownIt from "markdown-it";
 import hljs from "highlight.js";
+import katexPlugin from "@vscode/markdown-it-katex";
 
 let cached: MarkdownIt | null = null;
 
-/** Returns a singleton markdown-it instance with highlight.js syntax highlighting. */
+/** Returns a singleton markdown-it instance with highlight.js syntax highlighting
+ *  and KaTeX math rendering (inline `$...$` and block `$$...$$`). */
 export function getMarkdown(): MarkdownIt {
   if (cached) return cached;
   cached = new MarkdownIt({
@@ -31,6 +33,16 @@ export function getMarkdown(): MarkdownIt {
         return `<pre class="hljs"><code class="hljs">${escaped}</code></pre>`;
       }
     },
+  });
+  // throwOnError=false renders broken formulas as red error text instead of
+  // crashing the whole markdown render pipeline (which would blank out a chat
+  // message). enableFencedBlocks also makes ```math ... ``` render via KaTeX,
+  // which is what most LLMs emit.
+  cached.use(katexPlugin, {
+    throwOnError: false,
+    enableFencedBlocks: true,
+    enableMathBlockInHtml: true,
+    enableMathInlineInHtml: true,
   });
   return cached;
 }
