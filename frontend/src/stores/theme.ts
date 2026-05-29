@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { computed, ref, watchEffect } from "vue";
 import type { Theme } from "@/types";
+import { getMonacoThemeName } from "@/composables/useMonaco";
 
 const THEME_STORAGE_KEY = "TextMind.theme";
 
@@ -34,14 +35,13 @@ function loadInitialTheme(): Theme {
 export const useThemeStore = defineStore("theme", () => {
   const theme = ref<Theme>(loadInitialTheme());
 
-  // Monaco only ships two custom themes (tiny-light / tiny-minimal). Every
-  // "light-mode" theme reuses tiny-light, every "dark-mode" theme reuses
-  // tiny-minimal. The web-app palette is governed entirely by body[data-theme]
-  // CSS variables, so the Monaco theme only needs to match the overall
-  // light/dark intent, not the exact accent color.
-  const monacoThemeName = computed(() =>
-    isLightTheme(theme.value) ? "tiny-light" : "tiny-minimal",
-  );
+  // Map each app theme to its dedicated Monaco palette (defined in
+  // useMonaco.ts:defineMonacoThemes). We used to collapse this into a single
+  // light/dark pair, but that left e.g. 羊皮卷 (light) showing the dark
+  // tiny-minimal background and 夜樱's lavender panels next to a near-black
+  // editor square. Routing through getMonacoThemeName keeps EditorHost and
+  // TextDiffModal in lockstep with whatever the store decides.
+  const monacoThemeName = computed(() => getMonacoThemeName(theme.value));
 
   watchEffect(() => {
     document.body.dataset.theme = theme.value;

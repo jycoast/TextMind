@@ -4,6 +4,7 @@ import type {
   EditorAdapter,
   MonacoViewState,
   SelectionStats,
+  Theme,
 } from "@/types";
 import { normalizeLanguage, normalizeViewState } from "@/utils/normalize";
 import { registerJsonElementCountHints } from "@/composables/useJsonInlayHints";
@@ -14,6 +15,25 @@ const utf8Encoder = new TextEncoder();
 // Inlay-hint provider lives on monaco.languages, not on individual
 // editors. Register once at module load so every JSON model picks it up.
 registerJsonElementCountHints();
+
+// Monaco palettes for the four built-in app themes. Each entry mirrors the
+// corresponding body[data-theme] block in src/styles/base.css so the editor
+// surface visually merges with the surrounding panel (no jarring dark square
+// when the app is in a light theme, no near-black square in the lavender
+// 夜樱 / cream 羊皮卷 palettes).
+//
+// IMPORTANT: keep the keys here aligned with the `Theme` union in
+// src/types/index.ts and with the LIGHT_THEMES set in src/stores/theme.ts.
+// `themeToMonacoName` below is the single source of truth used by both the
+// Pinia store's computed `monacoThemeName` and the local helper consumed by
+// EditorHost / TextDiffModal — so adding a new preset only needs three edits:
+// the Theme union, this map, and the styles/base.css palette block.
+const MONACO_THEME_BY_APP_THEME: Record<Theme, string> = {
+  dark: "tiny-minimal",
+  light: "tiny-light",
+  sakura: "tiny-sakura",
+  parchment: "tiny-parchment",
+};
 
 export function defineMonacoThemes(): void {
   monaco.editor.defineTheme("tiny-minimal", {
@@ -54,10 +74,52 @@ export function defineMonacoThemes(): void {
       "editorInlayHint.background": "#00000000",
     },
   });
+  // 夜樱 — Dracula-style slate-violet base with cherry-blossom / iris accents.
+  monaco.editor.defineTheme("tiny-sakura", {
+    base: "vs-dark",
+    inherit: true,
+    rules: [],
+    colors: {
+      "editor.background": "#282a36",
+      "editor.foreground": "#f8f8f2",
+      "editorLineNumber.foreground": "#6272a4",
+      "editorLineNumber.activeForeground": "#bd93f9",
+      "editorCursor.foreground": "#ff79c6",
+      "editor.selectionBackground": "#bd93f966",
+      "editor.inactiveSelectionBackground": "#bd93f933",
+      "editor.lineHighlightBackground": "#ffffff08",
+      "scrollbarSlider.background": "#bd93f933",
+      "scrollbarSlider.hoverBackground": "#bd93f966",
+      "editorInlayHint.foreground": "#6272a4",
+      "editorInlayHint.background": "#00000000",
+    },
+  });
+  // 羊皮卷 — Solarized Light: warm cream background, muted teal text, classic blue accent.
+  monaco.editor.defineTheme("tiny-parchment", {
+    base: "vs",
+    inherit: true,
+    rules: [],
+    colors: {
+      "editor.background": "#fdf6e3",
+      "editor.foreground": "#586e75",
+      "editorLineNumber.foreground": "#93a1a1",
+      "editorLineNumber.activeForeground": "#586e75",
+      "editorCursor.foreground": "#268bd2",
+      "editor.selectionBackground": "#268bd247",
+      "editor.inactiveSelectionBackground": "#268bd226",
+      "editor.lineHighlightBackground": "#073b4214",
+      "scrollbarSlider.background": "#657b8333",
+      "scrollbarSlider.hoverBackground": "#657b8366",
+      "editorInlayHint.foreground": "#93a1a1",
+      "editorInlayHint.background": "#00000000",
+    },
+  });
 }
 
 export function getMonacoThemeName(theme: string): string {
-  return theme === "light" ? "tiny-light" : "tiny-minimal";
+  return (
+    MONACO_THEME_BY_APP_THEME[theme as Theme] ?? MONACO_THEME_BY_APP_THEME.dark
+  );
 }
 
 export interface CreateMonacoAdapterOptions {

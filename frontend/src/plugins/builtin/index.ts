@@ -10,6 +10,7 @@ import { pluginsUiPlugin } from "./pluginsUi";
 import { cosUploadPlugin } from "./cosUpload";
 import { outlinePlugin } from "./outline";
 import { themePlugin } from "./theme";
+import { textDiffPlugin } from "./textDiff";
 import type { Plugin } from "@/plugins/core";
 
 /**
@@ -24,6 +25,7 @@ export const builtinPlugins: Plugin[] = [
   filesPlugin,
   themePlugin,
   textToolsPlugin,
+  textDiffPlugin,
   jsonPlugin,
   aiPlugin,
   updaterPlugin,
@@ -37,6 +39,7 @@ export {
   filesPlugin,
   themePlugin,
   textToolsPlugin,
+  textDiffPlugin,
   jsonPlugin,
   aiPlugin,
   updaterPlugin,

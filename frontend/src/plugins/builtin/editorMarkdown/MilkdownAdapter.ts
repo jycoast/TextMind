@@ -79,6 +79,36 @@ import type {
 
 const utf8Encoder = new TextEncoder();
 
+// prosemirror-markdown (which Milkdown delegates to for serialization)
+// defensively escapes every `_`, `*`, `[`, `]`, etc. emitted from text nodes
+// so the round-trip is guaranteed to re-parse to the same doc. That guarantee
+// is way too pessimistic in practice — CommonMark explicitly forbids `_`
+// from opening emphasis when it is flanked by word characters on both sides,
+// so intra-word underscores like `t_sms_order`, `pay_time`, `snake_case_id`
+// never need escaping. The serializer doesn't apply that rule and instead
+// emits `t\_sms\_order`, which is what users see leaking back into:
+//   - `tabs.persistCurrentText()` (called on tab/editor swap and save)
+//   - the "文本对比" diff modal (reads adapter.getValue())
+//   - the "Source ↔ WYSIWYG" toggle (round-trips through tab.text)
+// and ends up baked into the saved file or pasted into a new tab.
+//
+// We only touch `\_` because (a) it's by far the most common false-positive
+// and (b) CommonMark's intra-word rule is unambiguous for `_`. We deliberately
+// do NOT unescape `\*` — `*` is allowed to do intra-word emphasis per spec
+// (`foo*bar*` is valid), so a defensive escape there can be load-bearing.
+//
+// A `\\` immediately before `_` (i.e. the user wrote a literal backslash and
+// then an underscore) is preserved because the regex requires a single
+// non-backslash word char before `\_`; `\` is not in `\w` so `...\\_x` won't
+// match.
+function unescapeIntraWordUnderscores(md: string): string {
+  return md.replace(/(\w)\\_(?=\w)/g, "$1_");
+}
+
+function sanitizeSerializedMarkdown(md: string): string {
+  return unescapeIntraWordUnderscores(md);
+}
+
 export interface MilkdownAdapterOptions {
   host: HTMLElement;
   initialTheme: string;
@@ -271,7 +301,7 @@ export function createMilkdownAdapter(
   function readMarkdown(): string {
     if (!editor) return pendingValue;
     try {
-      return editor.action(getMarkdown());
+      return sanitizeSerializedMarkdown(editor.action(getMarkdown()));
     } catch (err) {
       console.warn("[milkdown] getMarkdown:", err);
       return pendingValue;
