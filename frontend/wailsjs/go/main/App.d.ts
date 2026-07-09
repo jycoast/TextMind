@@ -6,7 +6,11 @@ import {textcodec} from '../models';
 
 export function CancelChatStream(arg1:string):Promise<main.SimpleResult>;
 
+export function CancelSearch():Promise<main.SimpleResult>;
+
 export function CancelUpdate():Promise<main.SimpleResult>;
+
+export function CheckFileChanges():Promise<Array<main.FileChangeInfo>>;
 
 export function CheckForUpdate():Promise<main.UpdateInfoDTO>;
 
@@ -40,6 +44,8 @@ export function KeepDuplicateSelected(arg1:string):Promise<main.ToolResult>;
 
 export function KeepSingletonSelected(arg1:string):Promise<main.ToolResult>;
 
+export function ListAllFiles(arg1:string):Promise<main.ListFilesResult>;
+
 export function ListConversations():Promise<main.ConversationListDTO>;
 
 export function ListExternalPlugins():Promise<main.PluginListDTO>;
@@ -72,6 +78,8 @@ export function PluginCall(arg1:string,arg2:string,arg3:string):Promise<main.Plu
 
 export function ReadPluginFile(arg1:string,arg2:string):Promise<string>;
 
+export function RefreshFileWatch(arg1:string):Promise<void>;
+
 export function RenameConversation(arg1:string,arg2:string):Promise<main.SimpleResult>;
 
 export function SaveAIConfig(arg1:main.AIConfigDTO):Promise<main.SimpleResult>;
@@ -90,6 +98,8 @@ export function SaveTextFileAsWithEncoding(arg1:string,arg2:string,arg3:string,a
 
 export function SaveTextFileWithEncoding(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<main.SaveFileResult>;
 
+export function SearchInFiles(arg1:main.SearchOptions):Promise<main.SearchResult>;
+
 export function SelectConversation(arg1:string):Promise<main.SimpleResult>;
 
 export function SetConversationModel(arg1:string,arg2:string):Promise<main.SimpleResult>;
@@ -106,4 +116,8 @@ export function ToInListSelected(arg1:string):Promise<main.ToolResult>;
 
 export function UninstallExternalPlugin(arg1:string):Promise<main.SimpleResult>;
 
+export function UnwatchFile(arg1:string):Promise<void>;
+
 export function UploadImageToCOS(arg1:string,arg2:string,arg3:string):Promise<main.COSUploadResult>;
+
+export function WatchFile(arg1:string):Promise<void>;

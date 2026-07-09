@@ -274,6 +274,36 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class FileChangeInfo {
+	    path: string;
+	    modTime: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileChangeInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.modTime = source["modTime"];
+	    }
+	}
+	export class FileEntry {
+	    name: string;
+	    path: string;
+	    relative: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.path = source["path"];
+	        this.relative = source["relative"];
+	    }
+	}
 	export class FolderEntry {
 	    name: string;
 	    path: string;
@@ -315,6 +345,38 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.bindings = source["bindings"];
 	    }
+	}
+	export class ListFilesResult {
+	    files: FileEntry[];
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ListFilesResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.files = this.convertValues(source["files"], FileEntry);
+	        this.error = source["error"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class ListFolderResult {
 	    path: string;
@@ -488,6 +550,88 @@ export namespace main {
 	        this.path = source["path"];
 	        this.error = source["error"];
 	    }
+	}
+	export class SearchMatch {
+	    path: string;
+	    relative: string;
+	    line: number;
+	    column: number;
+	    text: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SearchMatch(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.relative = source["relative"];
+	        this.line = source["line"];
+	        this.column = source["column"];
+	        this.text = source["text"];
+	    }
+	}
+	export class SearchOptions {
+	    query: string;
+	    root: string;
+	    caseSensitive: boolean;
+	    useRegex: boolean;
+	    wholeWord: boolean;
+	    includePattern: string;
+	    excludePattern: string;
+	    maxResults: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SearchOptions(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.query = source["query"];
+	        this.root = source["root"];
+	        this.caseSensitive = source["caseSensitive"];
+	        this.useRegex = source["useRegex"];
+	        this.wholeWord = source["wholeWord"];
+	        this.includePattern = source["includePattern"];
+	        this.excludePattern = source["excludePattern"];
+	        this.maxResults = source["maxResults"];
+	    }
+	}
+	export class SearchResult {
+	    matches: SearchMatch[];
+	    totalFiles: number;
+	    error?: string;
+	    truncated: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new SearchResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.matches = this.convertValues(source["matches"], SearchMatch);
+	        this.totalFiles = source["totalFiles"];
+	        this.error = source["error"];
+	        this.truncated = source["truncated"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class SessionPayload {
 	    nextTabSeq: number;

@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"TextMind/persist"
 	"TextMind/update"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -24,11 +25,17 @@ import (
 const updateRepo = "jycoast/TextMind"
 
 // updateCheckTTL is the minimum interval between live GitHub API hits.
-// Repeated CheckForUpdate calls inside this window return the in-memory
-// cached result so users mashing "重新检查" don't burn the anonymous
-// 60-req/h rate limit. Conditional (ETag) requests further protect us from
-// the "I waited 10 minutes" path.
-const updateCheckTTL = 5 * time.Minute
+// Repeated CheckForUpdate calls inside this window return the cached
+// result (in-memory or persisted) so users mashing "重新检查" don't burn
+// the anonymous 60-req/h rate limit. Beyond the TTL we still send a
+// conditional (If-None-Match) request that GitHub answers with a free 304
+// when the release hasn't changed, so this value is just a "don't even
+// talk to the network" guard, not the only rate-limit defense.
+//
+// One hour matches the rate-limit window itself: even if the user clicks
+// "重新检查" every minute, we'll touch GitHub at most ~1 time per hour
+// (plus free 304s) until a new release ships.
+const updateCheckTTL = 1 * time.Hour
 
 // UpdateAssetDTO mirrors update.Asset for the frontend.
 type UpdateAssetDTO struct {
@@ -83,11 +90,22 @@ var (
 // we can serve repeat checks without hitting GitHub. The ETag is stashed
 // separately so even after the TTL we can issue a conditional request that
 // returns 304 (and doesn't count against rate limit) when nothing changed.
+//
+// The cache is mirrored to disk via persist.UpdateCache so the ETag — the
+// only thing that lets us avoid burning fresh rate-limit quota on every
+// app restart — survives across launches. Without persistence, normal
+// usage patterns (multiple launches per day, `wails dev` hot-reloads)
+// trivially exhaust the 60-req/h anonymous limit.
 type releaseCache struct {
 	mu        sync.Mutex
 	release   *update.Release
 	etag      string
 	fetchedAt time.Time
+	// loaded becomes true after the first attempt to hydrate from disk,
+	// regardless of whether the file existed. Subsequent CheckForUpdate
+	// calls then skip the disk hit and stay in-memory.
+	loaded   bool
+	diskPath string // empty until loadOnce determines it (and on failure)
 }
 
 var updateCache releaseCache
@@ -108,6 +126,82 @@ func (c *releaseCache) set(rel *update.Release, etag string) {
 		c.etag = etag
 	}
 	c.fetchedAt = time.Now()
+}
+
+// snapshot returns a copy of the cache fields suitable for persistence.
+// Returns a non-nil cache only when we have at least an ETag worth saving
+// (an empty file would be useless and just create noise on disk).
+func (c *releaseCache) snapshot() (persist.UpdateCache, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.etag == "" && c.release == nil {
+		return persist.UpdateCache{}, false
+	}
+	return persist.UpdateCache{
+		ETag:      c.etag,
+		FetchedAt: c.fetchedAt,
+		Release:   c.release,
+	}, true
+}
+
+// loadOnce hydrates the in-memory cache from disk on the first call only.
+// Subsequent calls are cheap no-ops. We intentionally don't fail loudly on
+// I/O errors: a broken / missing cache file just degrades to "pay one API
+// call for the very next check", which is the original behaviour anyway.
+func (c *releaseCache) loadOnce(logger logf) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.loaded {
+		return
+	}
+	c.loaded = true
+
+	path, err := persist.UpdateCachePath()
+	if err != nil {
+		logger.Printf("update: resolve cache path failed: %v", err)
+		return
+	}
+	c.diskPath = path
+
+	cached, err := persist.LoadUpdateCache(path)
+	if err != nil {
+		logger.Printf("update: load cache failed: %v", err)
+		return
+	}
+	if cached.Release != nil {
+		c.release = cached.Release
+	}
+	if cached.ETag != "" {
+		c.etag = cached.ETag
+	}
+	if !cached.FetchedAt.IsZero() {
+		c.fetchedAt = cached.FetchedAt
+	}
+}
+
+// flush writes the current cache state to disk. Called from CheckForUpdate
+// after both successful fetches and 304s; we don't bother flushing on the
+// rate-limited / stale-cache path because nothing changed.
+func (c *releaseCache) flush(logger logf) {
+	snap, ok := c.snapshot()
+	if !ok {
+		return
+	}
+	c.mu.Lock()
+	path := c.diskPath
+	c.mu.Unlock()
+	if path == "" {
+		return
+	}
+	if err := persist.SaveUpdateCache(path, snap); err != nil {
+		logger.Printf("update: save cache failed: %v", err)
+	}
+}
+
+// logf is the small slice of *log.Logger we actually need; declared as an
+// interface so we don't import "log" just for the type.
+type logf interface {
+	Printf(format string, args ...any)
 }
 
 // GetAppVersion returns the build-time injected version string. Defaults to
@@ -143,6 +237,10 @@ func (a *App) CheckForUpdate() UpdateInfoDTO {
 		Platform:       runtime.GOOS + "/" + runtime.GOARCH,
 	}
 
+	// Pull whatever the previous launch left on disk (etag + release).
+	// First call pays a single tiny file read; subsequent calls are no-ops.
+	updateCache.loadOnce(a.logger)
+
 	cachedRel, cachedETag, cachedAt := updateCache.get()
 
 	// Fast path: served entirely from cache, no network call.
@@ -166,6 +264,7 @@ func (a *App) CheckForUpdate() UpdateInfoDTO {
 		// Refresh the fetchedAt so the TTL gate doesn't immediately expire
 		// the cache again on the next click.
 		updateCache.set(nil, res.ETag)
+		updateCache.flush(a.logger)
 		a.fillInfoFromRelease(&info, cachedRel, current)
 		a.logger.Printf("update: 304 not modified, reusing cached %s", cachedRel.TagName)
 		return info
@@ -186,6 +285,7 @@ func (a *App) CheckForUpdate() UpdateInfoDTO {
 
 	rel := res.Release
 	updateCache.set(&rel, res.ETag)
+	updateCache.flush(a.logger)
 	a.fillInfoFromRelease(&info, &rel, current)
 	a.logger.Printf("update: check ok current=%s latest=%s hasUpdate=%v auto=%v",
 		current, rel.TagName, info.HasUpdate, info.CanAutoInstall)

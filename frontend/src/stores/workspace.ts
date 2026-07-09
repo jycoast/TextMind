@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { reactive, ref } from "vue";
 import type { FolderNode } from "@/types";
 import { backend } from "@/api/backend";
 import { pathBaseName } from "@/utils/normalize";
@@ -12,7 +12,7 @@ function createFolderNode(entry: {
   const path = String(entry?.path || "").trim();
   if (!path) return null;
   const isDir = Boolean(entry?.isDir);
-  return {
+  return reactive<FolderNode>({
     name: String(entry?.name || "").trim() || pathBaseName(path) || path,
     path,
     isDir,
@@ -21,7 +21,7 @@ function createFolderNode(entry: {
     loading: false,
     children: [],
     error: "",
-  };
+  });
 }
 
 function normalizeFolderEntries(entries: unknown): FolderNode[] {
@@ -53,11 +53,22 @@ export const useWorkspaceStore = defineStore("workspace", () => {
 
   async function ensureChildren(node: FolderNode): Promise<boolean> {
     if (!node?.isDir) return false;
-    if (node.loaded || node.loading) return Boolean(node.loaded);
+    if (node.loaded) return true;
+
     node.loading = true;
     node.error = "";
+
+    // Safety timeout: if the request hangs forever, reset loading after 10s
+    const timeout = setTimeout(() => {
+      if (node.loading && !node.loaded) {
+        node.loading = false;
+        node.error = "加载超时，请点击重试";
+      }
+    }, 10000);
+
     try {
       const res = await backend.listFolder(node.path);
+      clearTimeout(timeout);
       if (!res) {
         node.error = "读取目录失败";
         node.loaded = false;
@@ -72,6 +83,11 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       node.loaded = true;
       node.error = "";
       return true;
+    } catch {
+      clearTimeout(timeout);
+      node.error = "读取目录失败";
+      node.loaded = false;
+      return false;
     } finally {
       node.loading = false;
     }
@@ -84,17 +100,27 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       tree.value = null;
       return false;
     }
-    const rootNode = createFolderNode({
+    const rootNode = reactive<FolderNode>({
       name: pathBaseName(p) || p,
       path: p,
       isDir: true,
+      expanded: true,
+      loaded: false,
+      loading: false,
+      children: [],
+      error: "",
     });
-    if (!rootNode) return false;
-    rootNode.expanded = true;
-    rootNode.loaded = false;
     tree.value = rootNode;
-    await ensureChildren(rootNode);
-    return true;
+
+    // Retry up to 3 times with delay if backend isn't ready yet
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const ok = await ensureChildren(rootNode);
+      if (ok) return true;
+      if (attempt < 2) {
+        await new Promise((r) => setTimeout(r, 800));
+      }
+    }
+    return Boolean(rootNode.loaded);
   }
 
   async function toggleFolder(path: string): Promise<void> {

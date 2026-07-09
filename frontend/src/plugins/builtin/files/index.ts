@@ -5,9 +5,15 @@ import { useMenusStore } from "@/stores/menus";
 import { useRecentStore } from "@/stores/recent";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { useUiStore } from "@/stores/ui";
+import { useSidebarStore } from "@/stores/sidebar";
 import { backend } from "@/api/backend";
 import { guessLanguageByFilename } from "@/composables/useLanguageGuess";
 import { pathBaseName } from "@/utils/normalize";
+import {
+  watchFilePath,
+  refreshFileWatch,
+} from "@/composables/useFileWatcher";
+import FileExplorer from "@/components/FileExplorer.vue";
 import SaveAsEncodingModal from "@/components/SaveAsEncodingModal.vue";
 
 const PLUGIN_ID = "textmind.files";
@@ -39,6 +45,7 @@ async function openFileByPath(path: string, _ctx: PluginContext) {
   if (!res.path) return;
   const result = tabs.openFileResultToTab(res);
   recents.push(res.path, res.name, guessLanguageByFilename(res.name || res.path));
+  watchFilePath(res.path);
   if (result?.reloaded) ui.showTip(`已重新加载 ${res.name || "文件"}`);
   else if (result?.existed) ui.showTip(`文件已打开，已切换到 ${res.name || "对应Tab"}`);
   else ui.showTip(`已打开 ${res.name || "文件"}`);
@@ -52,6 +59,16 @@ export const filesPlugin: Plugin = {
     const recents = useRecentStore();
     const workspace = useWorkspaceStore();
     const ui = useUiStore();
+    const sidebar = useSidebarStore();
+
+    // Register file explorer in sidebar
+    sidebar.register({
+      id: "files",
+      icon: "files",
+      title: "文件",
+      order: 10,
+      component: FileExplorer,
+    });
 
     // ---- Commands ----
     ctx.commands.register({
@@ -66,7 +83,10 @@ export const filesPlugin: Plugin = {
           ui.showTip(r.error);
           return;
         }
-        if (r.ok) ui.showTip(`已保存 ${r.name || ""}`);
+        if (r.ok) {
+          ui.showTip(`已保存 ${r.name || ""}`);
+          if (tabs.current?.path) refreshFileWatch(tabs.current.path);
+        }
       },
     });
 
@@ -114,6 +134,7 @@ export const filesPlugin: Plugin = {
         if (!res.path) return;
         const result = tabs.openFileResultToTab(res);
         recents.push(res.path, res.name, guessLanguageByFilename(res.name || res.path));
+        watchFilePath(res.path);
         if (result?.reloaded) ui.showTip(`已重新加载 ${res.name || "文件"}`);
         else if (result?.existed) ui.showTip(`文件已打开，已切换到 ${res.name || "对应Tab"}`);
         else ui.showTip(`已打开 ${res.name || "文件"}`);

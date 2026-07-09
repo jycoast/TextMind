@@ -6,8 +6,16 @@ export function CancelChatStream(arg1) {
   return window['go']['main']['App']['CancelChatStream'](arg1);
 }
 
+export function CancelSearch() {
+  return window['go']['main']['App']['CancelSearch']();
+}
+
 export function CancelUpdate() {
   return window['go']['main']['App']['CancelUpdate']();
+}
+
+export function CheckFileChanges() {
+  return window['go']['main']['App']['CheckFileChanges']();
 }
 
 export function CheckForUpdate() {
@@ -74,6 +82,10 @@ export function KeepSingletonSelected(arg1) {
   return window['go']['main']['App']['KeepSingletonSelected'](arg1);
 }
 
+export function ListAllFiles(arg1) {
+  return window['go']['main']['App']['ListAllFiles'](arg1);
+}
+
 export function ListConversations() {
   return window['go']['main']['App']['ListConversations']();
 }
@@ -138,6 +150,10 @@ export function ReadPluginFile(arg1, arg2) {
   return window['go']['main']['App']['ReadPluginFile'](arg1, arg2);
 }
 
+export function RefreshFileWatch(arg1) {
+  return window['go']['main']['App']['RefreshFileWatch'](arg1);
+}
+
 export function RenameConversation(arg1, arg2) {
   return window['go']['main']['App']['RenameConversation'](arg1, arg2);
 }
@@ -174,6 +190,10 @@ export function SaveTextFileWithEncoding(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['SaveTextFileWithEncoding'](arg1, arg2, arg3, arg4);
 }
 
+export function SearchInFiles(arg1) {
+  return window['go']['main']['App']['SearchInFiles'](arg1);
+}
+
 export function SelectConversation(arg1) {
   return window['go']['main']['App']['SelectConversation'](arg1);
 }
@@ -206,6 +226,14 @@ export function UninstallExternalPlugin(arg1) {
   return window['go']['main']['App']['UninstallExternalPlugin'](arg1);
 }
 
+export function UnwatchFile(arg1) {
+  return window['go']['main']['App']['UnwatchFile'](arg1);
+}
+
 export function UploadImageToCOS(arg1, arg2, arg3) {
   return window['go']['main']['App']['UploadImageToCOS'](arg1, arg2, arg3);
+}
+
+export function WatchFile(arg1) {
+  return window['go']['main']['App']['WatchFile'](arg1);
 }

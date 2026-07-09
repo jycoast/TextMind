@@ -4,11 +4,11 @@ import (
 	"context"
 	"embed"
 	_ "embed"
-	"io"
 	"io/fs"
 	"log"
 	"os"
 
+	"TextMind/persist"
 	"TextMind/pluginhost"
 
 	"github.com/wailsapp/wails/v2"
@@ -30,7 +30,7 @@ var frontendAssets embed.FS
 var Version = "dev"
 
 func main() {
-	logger := log.New(io.Discard, "", 0)
+	logger := log.New(persist.NewLogWriter(), "[TextMind] ", log.Ldate|log.Ltime|log.Lshortfile)
 	launchPath := detectLaunchPath(os.Args[1:])
 
 	assetFS, err := fs.Sub(frontendAssets, "frontend/dist")

@@ -139,6 +139,12 @@ export const backend = {
   ): Promise<main.SimpleResult> =>
     App.GrantPluginPermissions(pluginId, permissions),
 
+  listAllFiles: (root: string): Promise<main.ListFilesResult> =>
+    App.ListAllFiles(root),
+  searchInFiles: (opts: main.SearchOptions): Promise<main.SearchResult> =>
+    App.SearchInFiles(opts),
+  cancelSearch: (): Promise<main.SimpleResult> => App.CancelSearch(),
+
   getCOSConfig: (): Promise<main.COSConfigDTO> => App.GetCOSConfig(),
   saveCOSConfig: (cfg: main.COSConfigDTO): Promise<main.SimpleResult> =>
     App.SaveCOSConfig(cfg),
@@ -148,6 +154,11 @@ export const backend = {
     base64Data: string,
   ): Promise<main.COSUploadResult> =>
     App.UploadImageToCOS(filename, contentType, base64Data),
+
+  watchFile: (path: string): Promise<void> => App.WatchFile(path),
+  unwatchFile: (path: string): Promise<void> => App.UnwatchFile(path),
+  refreshFileWatch: (path: string): Promise<void> => App.RefreshFileWatch(path),
+  checkFileChanges: (): Promise<main.FileChangeInfo[]> => App.CheckFileChanges(),
 };
 
 export function isBackendReady(): boolean {

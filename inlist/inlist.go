@@ -4,8 +4,8 @@ import "strings"
 
 // QuotedCommaLines turns newline-separated values into one comma-separated line
 // suitable for pasting into SQL IN (...) clauses.
-// Each non-empty line (after TrimSpace) becomes one quoted value; interior
-// double quotes are escaped by doubling.
+// Each non-empty line (after TrimSpace) becomes one single-quoted value;
+// interior single quotes are escaped by doubling (SQL standard).
 func QuotedCommaLines(input string) (result string, count int) {
 	input = strings.ReplaceAll(input, "\r\n", "\n")
 	lines := strings.Split(input, "\n")

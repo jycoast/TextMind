@@ -33,6 +33,7 @@ type App struct {
 	version          string
 	pluginHost       *pluginhost.Host
 	pluginBridge     *pluginhost.Bridge
+	fileWatcher      *fileWatcher
 }
 
 type SessionPayload struct {
@@ -97,6 +98,7 @@ func NewApp(logger *log.Logger, launchPath string) *App {
 		keymapConfigPath: keymapConfigFilePath(logger),
 		cosConfigPath:    cosConfigFilePath(logger),
 		launchPath:       strings.TrimSpace(launchPath),
+		fileWatcher:      newFileWatcher(),
 	}
 }
 
@@ -115,7 +117,6 @@ func (a *App) startup(ctx context.Context) {
 }
 
 func (a *App) shutdown(context.Context) {
-	// Session is saved by explicit frontend call.
 	a.aiStreams.cancelAll()
 }
 

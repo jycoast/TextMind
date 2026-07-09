@@ -11,6 +11,7 @@ import { cosUploadPlugin } from "./cosUpload";
 import { outlinePlugin } from "./outline";
 import { themePlugin } from "./theme";
 import { textDiffPlugin } from "./textDiff";
+import { commandPalettePlugin } from "./commandPalette";
 import type { Plugin } from "@/plugins/core";
 
 /**
@@ -33,6 +34,7 @@ export const builtinPlugins: Plugin[] = [
   pluginsUiPlugin,
   cosUploadPlugin,
   outlinePlugin,
+  commandPalettePlugin,
 ];
 
 export {
@@ -49,4 +51,5 @@ export {
   pluginsUiPlugin,
   cosUploadPlugin,
   outlinePlugin,
+  commandPalettePlugin,
 };

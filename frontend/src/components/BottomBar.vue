@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
-import { useExplorerStore } from "@/stores/explorer";
 import { useTabsStore } from "@/stores/tabs";
 import { useUiStore } from "@/stores/ui";
 import {
@@ -11,16 +10,9 @@ import {
 import { backend } from "@/api/backend";
 import type { EncodingMeta } from "@/types";
 
-const explorer = useExplorerStore();
 const tabs = useTabsStore();
 const ui = useUiStore();
-const { collapsed } = storeToRefs(explorer);
 const { current, adapter } = storeToRefs(tabs);
-
-const label = computed(() =>
-  collapsed.value ? "展开文件夹" : "收起文件夹",
-);
-const arrow = computed(() => (collapsed.value ? "▶" : "◀"));
 
 const currentLang = computed(() => current.value?.language || "plaintext");
 const currentLabel = computed(() => getLanguageLabel(currentLang.value));
@@ -224,11 +216,6 @@ const filteredOptions = computed(() => {
   );
 });
 
-function onToggle() {
-  explorer.toggleCollapsed();
-  setTimeout(() => tabs.adapter?.forceRefresh(), 0);
-}
-
 function openPicker() {
   pickerOpen.value = true;
   filter.value = "";
@@ -279,18 +266,6 @@ onBeforeUnmount(() => {
       borderTop: '1px solid var(--hairline)',
     }"
   >
-    <button
-      type="button"
-      class="w-[22px] h-5 p-0 rounded-sm text-xs leading-none cursor-pointer bg-transparent border border-solid border-transparent"
-      :style="{ color: 'var(--muted)' }"
-      :aria-label="label"
-      :title="label"
-      :aria-expanded="collapsed ? 'false' : 'true'"
-      @click="onToggle"
-    >
-      {{ arrow }}
-    </button>
-
     <div class="flex-1"></div>
 
     <div
