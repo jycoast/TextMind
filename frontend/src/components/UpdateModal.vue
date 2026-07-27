@@ -3,6 +3,7 @@ import { computed, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useUpdateStore } from "@/stores/update";
 import { renderMarkdown } from "@/composables/useMarkdown";
+import { vMermaid } from "@/composables/useMermaid";
 
 const props = defineProps<{
   visible: boolean;
@@ -212,6 +213,7 @@ function onOpenReleasePage() {
         >
           <div
             v-if="renderedNotes"
+            v-mermaid
             class="markdown-body text-[13px] leading-relaxed"
             v-html="renderedNotes"
           ></div>

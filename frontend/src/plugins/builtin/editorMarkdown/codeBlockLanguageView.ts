@@ -22,6 +22,10 @@ import { $prose } from "@milkdown/utils";
 import { Plugin, TextSelection } from "@milkdown/prose/state";
 import type { EditorView, NodeView } from "@milkdown/prose/view";
 import type { Node as ProseNode } from "@milkdown/prose/model";
+import {
+  onMermaidThemeChange,
+  renderMermaidSvg,
+} from "@/composables/useMermaid";
 
 const KNOWN_LANGUAGES = [
   "javascript",
@@ -45,6 +49,7 @@ const KNOWN_LANGUAGES = [
   "less",
   "yaml",
   "markdown",
+  "mermaid",
   "ini",
 ];
 
@@ -79,6 +84,12 @@ function buildView(
   const code = document.createElement("code");
   pre.appendChild(code);
 
+  const mermaidPreview = document.createElement("div");
+  mermaidPreview.className = "tm-md-mermaid-preview";
+  mermaidPreview.setAttribute("contenteditable", "false");
+  mermaidPreview.setAttribute("aria-label", "Mermaid diagram preview");
+  pre.appendChild(mermaidPreview);
+
   const badge = document.createElement("div");
   badge.className = "tm-md-codeblock-lang";
   badge.setAttribute("contenteditable", "false");
@@ -93,6 +104,43 @@ function buildView(
   badge.appendChild(input);
 
   pre.appendChild(badge);
+
+  let mermaidRevision = 0;
+  let mermaidTimer: ReturnType<typeof setTimeout> | null = null;
+  function updateMermaidPreview(): void {
+    const isMermaid =
+      String(node.attrs.language || "").toLowerCase() === "mermaid";
+    pre.classList.toggle("tm-md-codeblock--mermaid", isMermaid);
+    if (mermaidTimer) {
+      clearTimeout(mermaidTimer);
+      mermaidTimer = null;
+    }
+    if (!isMermaid) {
+      mermaidRevision += 1;
+      mermaidPreview.replaceChildren();
+      return;
+    }
+    mermaidRevision += 1;
+    const revision = mermaidRevision;
+    mermaidPreview.dataset.state = "rendering";
+    const source = node.textContent;
+    mermaidTimer = setTimeout(() => {
+      mermaidTimer = null;
+      void renderMermaidSvg(source)
+        .then((svg) => {
+          if (revision !== mermaidRevision) return;
+          mermaidPreview.innerHTML = svg;
+          mermaidPreview.dataset.state = "rendered";
+        })
+        .catch((err) => {
+          if (revision !== mermaidRevision) return;
+          mermaidPreview.textContent = err instanceof Error
+            ? `Mermaid: ${err.message}`
+            : "Mermaid 图表语法无效";
+          mermaidPreview.dataset.state = "error";
+        });
+    }, 250);
+  }
 
   // The badge sits inside the editor root, so by default ProseMirror would
   // treat clicks/typing in the input as document interaction. Swallow the
@@ -121,6 +169,8 @@ function buildView(
 
   input.addEventListener("input", () => commitLanguage(input.value));
   input.addEventListener("change", () => commitLanguage(input.value));
+  updateMermaidPreview();
+  const removeThemeListener = onMermaidThemeChange(updateMermaidPreview);
 
   // Enter should commit the value and move focus into the code body so the
   // user can keep typing code. Escape blurs the input without other side
@@ -151,6 +201,7 @@ function buildView(
     update(updatedNode) {
       if (updatedNode.type.name !== "code_block") return false;
       node = updatedNode;
+      updateMermaidPreview();
       const nextLang = updatedNode.attrs.language || "";
       // Only refresh the input value when the user is not actively editing it,
       // otherwise we'd clobber what they just typed and reset caret position.
@@ -162,15 +213,21 @@ function buildView(
     ignoreMutation(mutation) {
       // Any DOM change inside the badge is bookkeeping (input value, focus
       // ring, etc.) and never represents a document edit.
-      return badge.contains(mutation.target as Node);
+      const target = mutation.target as Node;
+      return badge.contains(target) || mermaidPreview.contains(target);
     },
     stopEvent(event) {
       // Pointer / keyboard events that originate inside the badge belong to
       // the form control, not the ProseMirror view.
       const t = event.target as Node | null;
-      return Boolean(t && badge.contains(t));
+      return Boolean(
+        t && (badge.contains(t) || mermaidPreview.contains(t)),
+      );
     },
     destroy() {
+      mermaidRevision += 1;
+      if (mermaidTimer) clearTimeout(mermaidTimer);
+      removeThemeListener();
       badge.removeEventListener("mousedown", swallow);
       badge.removeEventListener("click", swallow);
       badge.removeEventListener("keyup", swallow);

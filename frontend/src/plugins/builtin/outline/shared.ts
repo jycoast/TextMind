@@ -5,15 +5,13 @@ import { useTabsStore } from "@/stores/tabs";
 import { useUiStore } from "@/stores/ui";
 import type { Tab } from "@/types";
 import type { OutlineItem } from "./parser";
+import { isMarkdownDocument } from "@/composables/markdownDialect";
 
 export const PLUGIN_ID = "textmind.outline";
 export const PANEL_ID = "textmind.outline.panel";
 
 export function isMarkdownTab(tab: Tab | null | undefined): boolean {
-  if (!tab) return false;
-  if (tab.language === "markdown" || tab.language === "md") return true;
-  const p = (tab.path || tab.title || "").toLowerCase();
-  return /\.(md|markdown|mdx)$/.test(p);
+  return isMarkdownDocument(tab);
 }
 
 /**

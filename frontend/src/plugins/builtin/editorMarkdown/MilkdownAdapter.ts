@@ -12,11 +12,45 @@ import {
   editorViewCtx,
   parserCtx,
 } from "@milkdown/core";
-import { Slice } from "@milkdown/prose/model";
+import { Slice, type Node as ProseNode } from "@milkdown/prose/model";
 import { commonmark } from "@milkdown/preset-commonmark";
-import { gfm } from "@milkdown/preset-gfm";
+import {
+  createCodeBlockCommand,
+  insertHrCommand,
+  insertImageCommand,
+  toggleEmphasisCommand,
+  toggleInlineCodeCommand,
+  toggleLinkCommand,
+  toggleStrongCommand,
+  turnIntoTextCommand,
+  updateImageCommand,
+  updateLinkCommand,
+  wrapInBlockquoteCommand,
+  wrapInBulletListCommand,
+  wrapInHeadingCommand,
+  wrapInOrderedListCommand,
+} from "@milkdown/preset-commonmark";
+import {
+  addColAfterCommand,
+  addColBeforeCommand,
+  addRowAfterCommand,
+  addRowBeforeCommand,
+  gfm,
+  insertTableCommand,
+  setAlignCommand,
+  toggleStrikethroughCommand,
+} from "@milkdown/preset-gfm";
 import { listener, listenerCtx } from "@milkdown/plugin-listener";
-import { history } from "@milkdown/plugin-history";
+import {
+  history,
+  redoCommand,
+  undoCommand,
+} from "@milkdown/plugin-history";
+import {
+  deleteColumn,
+  deleteRow,
+  deleteTable,
+} from "@milkdown/prose/tables";
 import { math, katexOptionsCtx } from "@milkdown/plugin-math";
 import { prism, prismConfig } from "@milkdown/plugin-prism";
 import { codeBlockLanguageView } from "./codeBlockLanguageView";
@@ -52,10 +86,16 @@ import refractorLess from "refractor/less";
 import refractorYaml from "refractor/yaml";
 import refractorMarkdown from "refractor/markdown";
 import refractorIni from "refractor/ini";
-import { getMarkdown, replaceAll } from "@milkdown/utils";
+import { callCommand, getMarkdown, replaceAll } from "@milkdown/utils";
 import { TextSelection } from "@milkdown/prose/state";
 import { themedStyles } from "./theme";
 import { createFindWidget, type FindWidgetHandle } from "./findWidget";
+import {
+  createFormattingToolbar,
+  type FormattingAction,
+} from "./formattingToolbar";
+import { createMarkdownChangeGuard } from "./changeGuard";
+import { handleMarkdownLinkClick } from "@/composables/markdownLinks";
 
 // The bundled @milkdown/theme-nord is a hardcoded dark theme which leaves
 // body text invisible in our light mode. We ship our own minimal stylesheet
@@ -136,6 +176,11 @@ export function createMilkdownAdapter(
   inner.style.boxSizing = "border-box";
   host.appendChild(inner);
 
+  const toolbar = createFormattingToolbar((action, payload) => {
+    runFormattingCommand(action, payload);
+  });
+  inner.appendChild(toolbar.element);
+
   // pendingValue stores writes that arrive before the editor finishes booting,
   // and stays in sync afterward so getValue() before the first user edit is
   // still correct without paying for a ProseMirror serialize.
@@ -143,10 +188,154 @@ export function createMilkdownAdapter(
   let editor: Editor | null = null;
   let booted = false;
   let disposed = false;
+  let cleanDoc: ProseNode | null = null;
   // Boot starts with onChange suppressed so the initial document insert (which
   // ProseMirror models as a transaction) doesn't propagate up and clobber
   // tab.text with an empty string.
   let suppressOnChange = true;
+  const changeGuard = createMarkdownChangeGuard();
+
+  function expectProgrammaticMarkdown(): void {
+    if (!editor) return;
+    try {
+      cleanDoc = getView().state.doc;
+      changeGuard.expect(editor.action(getMarkdown()));
+    } catch (err) {
+      console.warn("[milkdown] capture programmatic markdown:", err);
+    }
+  }
+
+  function runFormattingCommand(action: FormattingAction, payload?: unknown) {
+    if (!editor || !booted) return false;
+    const invoke = (command: { key: unknown }, commandPayload?: unknown) => {
+      editor?.action(
+        callCommand(command.key as unknown as string, commandPayload),
+      );
+    };
+    try {
+      switch (action) {
+        case "undo": invoke(undoCommand); break;
+        case "redo": invoke(redoCommand); break;
+        case "strong": invoke(toggleStrongCommand); break;
+        case "emphasis": invoke(toggleEmphasisCommand); break;
+        case "strike": invoke(toggleStrikethroughCommand); break;
+        case "inline-code": invoke(toggleInlineCodeCommand); break;
+        case "blockquote": invoke(wrapInBlockquoteCommand); break;
+        case "bullet-list": invoke(wrapInBulletListCommand); break;
+        case "ordered-list": invoke(wrapInOrderedListCommand); break;
+        case "heading":
+          Number(payload) > 0
+            ? invoke(wrapInHeadingCommand, Number(payload))
+            : invoke(turnIntoTextCommand);
+          break;
+        case "link-set": {
+          const value = payload as {
+            href?: string;
+            title?: string;
+            update?: boolean;
+          };
+          invoke(value.update ? updateLinkCommand : toggleLinkCommand, {
+            href: value.href,
+            title: value.title || undefined,
+          });
+          break;
+        }
+        case "link-remove":
+          editor.action((ctx) => {
+            const view = ctx.get(editorViewCtx);
+            const { state } = view;
+            const markType = state.schema.marks.link;
+            if (!markType) return;
+            let { from, to } = state.selection;
+            if (state.selection.empty) {
+              const parent = state.selection.$from.parent;
+              const parentStart = state.selection.$from.start();
+              let offset = 0;
+              parent.forEach((node) => {
+                const start = parentStart + offset;
+                const end = start + node.nodeSize;
+                if (
+                  markType.isInSet(node.marks) &&
+                  start <= from &&
+                  from <= end
+                ) {
+                  from = start;
+                  to = end;
+                }
+                offset += node.nodeSize;
+              });
+            }
+            view.dispatch(state.tr.removeMark(from, to, markType).scrollIntoView());
+          });
+          break;
+        case "image-set": {
+          const value = payload as {
+            src?: string;
+            alt?: string;
+            title?: string;
+            update?: boolean;
+          };
+          invoke(value.update ? updateImageCommand : insertImageCommand, {
+            src: value.src,
+            alt: value.alt,
+            title: value.title,
+          });
+          break;
+        }
+        case "image-remove":
+          editor.action((ctx) => {
+            const view = ctx.get(editorViewCtx);
+            view.dispatch(view.state.tr.deleteSelection().scrollIntoView());
+          });
+          break;
+        case "table-insert": invoke(insertTableCommand, { row: 3, col: 3 }); break;
+        case "table-add-row-before": invoke(addRowBeforeCommand); break;
+        case "table-add-row-after": invoke(addRowAfterCommand); break;
+        case "table-add-column-before": invoke(addColBeforeCommand); break;
+        case "table-add-column-after": invoke(addColAfterCommand); break;
+        case "table-align": invoke(setAlignCommand, payload); break;
+        case "table-delete-row":
+        case "table-delete-column":
+        case "table-delete":
+          editor.action((ctx) => {
+            const view = ctx.get(editorViewCtx);
+            const command = action === "table-delete-row"
+              ? deleteRow
+              : action === "table-delete-column"
+                ? deleteColumn
+                : deleteTable;
+            command(view.state, view.dispatch);
+          });
+          break;
+        case "task-list":
+          editor.action((ctx) => {
+            const view = ctx.get(editorViewCtx);
+            const { $from } = view.state.selection;
+            for (let depth = $from.depth; depth > 0; depth -= 1) {
+              const node = $from.node(depth);
+              if (node.type.name !== "list_item") continue;
+              const checked = node.attrs.checked == null ? false : null;
+              view.dispatch(
+                view.state.tr.setNodeMarkup($from.before(depth), undefined, {
+                  ...node.attrs,
+                  checked,
+                }),
+              );
+              break;
+            }
+          });
+          break;
+        case "hr": invoke(insertHrCommand); break;
+        default: invoke(createCodeBlockCommand); break;
+      }
+      getView().focus();
+      toolbar.update(getView().state);
+      return true;
+    } catch (err) {
+      console.warn("[milkdown] formatting command:", err);
+      return false;
+    }
+  }
 
   const changeHandlers: Array<() => void> = [];
   const cursorHandlers: Array<() => void> = [];
@@ -157,6 +346,7 @@ export function createMilkdownAdapter(
     for (const h of contextMenuHandlers) h(ev);
   };
   inner.addEventListener("contextmenu", onContextMenuListener);
+  inner.addEventListener("click", handleMarkdownLinkClick);
 
   // Paste handlers fire BEFORE ProseMirror's default insert so plugins like
   // the COS image uploader can hijack the event, upload the blob async, and
@@ -235,13 +425,15 @@ export function createMilkdownAdapter(
         });
         ctx.get(listenerCtx)
           .markdownUpdated((_ctx, md, _prev) => {
-            pendingValue = md;
             if (suppressOnChange) return;
+            if (!changeGuard.shouldNotify(md)) return;
+            pendingValue = sanitizeSerializedMarkdown(md);
             for (const h of changeHandlers) h();
           })
           .selectionUpdated((_ctx, sel) => {
             emitCursor();
             emitSelectionsCount(sel.empty ? 1 : 1);
+            if (editor && booted) toolbar.update(getView().state);
           });
       })
       .use(commonmark)
@@ -279,6 +471,7 @@ export function createMilkdownAdapter(
       }
       editor = e;
       booted = true;
+      toolbar.update(getView().state);
       // Race fix: setValue() calls that landed before / during boot only
       // updated pendingValue and never reached the editor. Re-apply now so
       // the user sees the file content even when the config callback ran
@@ -290,6 +483,7 @@ export function createMilkdownAdapter(
           console.warn("[milkdown] initial replaceAll:", err);
         }
       }
+      expectProgrammaticMarkdown();
     } catch (err) {
       console.error("[milkdown] failed to boot:", err);
     } finally {
@@ -301,6 +495,7 @@ export function createMilkdownAdapter(
   function readMarkdown(): string {
     if (!editor) return pendingValue;
     try {
+      if (cleanDoc && getView().state.doc.eq(cleanDoc)) return pendingValue;
       return sanitizeSerializedMarkdown(editor.action(getMarkdown()));
     } catch (err) {
       console.warn("[milkdown] getMarkdown:", err);
@@ -315,6 +510,7 @@ export function createMilkdownAdapter(
     suppressOnChange = true;
     try {
       editor.action(replaceAll(md));
+      expectProgrammaticMarkdown();
     } catch (err) {
       console.warn("[milkdown] replaceAll:", err);
     } finally {
@@ -570,11 +766,13 @@ export function createMilkdownAdapter(
       if (disposed) return;
       disposed = true;
       inner.removeEventListener("contextmenu", onContextMenuListener);
+      inner.removeEventListener("click", handleMarkdownLinkClick);
       inner.removeEventListener("paste", onPasteListener, true);
       if (findWidget) {
         findWidget.destroy();
         findWidget = null;
       }
+      toolbar.destroy();
       const maybe = editor;
       editor = null;
       if (maybe) {

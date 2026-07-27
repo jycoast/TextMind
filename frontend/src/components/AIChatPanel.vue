@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useAIPanelStore } from "@/stores/aiPanel";
 import { useAIChatStore, type ChatMessage } from "@/stores/aiChat";
@@ -7,8 +7,12 @@ import { useAIConfigStore } from "@/stores/aiConfig";
 import { useTabsStore } from "@/stores/tabs";
 import { useUiStore } from "@/stores/ui";
 import { useAIChat, type ConversationHandle } from "@/composables/useAIChat";
-import { renderMarkdown } from "@/composables/useMarkdown";
+import {
+  renderMarkdownCached,
+  renderStreamingMarkdown,
+} from "@/composables/useMarkdown";
 import { backend } from "@/api/backend";
+import { vMermaid } from "@/composables/useMermaid";
 
 const emit = defineEmits<{
   (e: "open-settings"): void;
@@ -32,6 +36,26 @@ const renamingTitle = ref<string>("");
 const activeStream = computed(() =>
   chat.selectedId ? chat.getStream(chat.selectedId) : null,
 );
+const activeStreamHtml = ref("");
+let streamRenderTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(
+  () => activeStream.value?.buffer ?? "",
+  (buffer) => {
+    if (streamRenderTimer) return;
+    streamRenderTimer = setTimeout(() => {
+      activeStreamHtml.value = renderStreamingMarkdown(
+        activeStream.value?.buffer ?? buffer,
+      );
+      streamRenderTimer = null;
+    }, 80);
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => {
+  if (streamRenderTimer) clearTimeout(streamRenderTimer);
+});
 
 const messages = computed<ChatMessage[]>(() => {
   return chat.activeConversation?.messages ?? [];
@@ -405,8 +429,9 @@ function closePanel() {
           >
             <div
               v-if="m.role === 'assistant'"
+              v-mermaid
               class="markdown-body text-[13px] leading-relaxed"
-              v-html="renderMarkdown(m.content)"
+              v-html="renderMarkdownCached(m.content)"
             ></div>
             <div
               v-else
@@ -449,8 +474,9 @@ function closePanel() {
           >
             <div
               v-if="activeStream.buffer"
+              v-mermaid
               class="markdown-body text-[13px] leading-relaxed"
-              v-html="renderMarkdown(activeStream.buffer)"
+              v-html="activeStreamHtml"
             ></div>
             <div
               v-else

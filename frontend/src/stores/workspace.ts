@@ -4,6 +4,35 @@ import type { FolderNode } from "@/types";
 import { backend } from "@/api/backend";
 import { pathBaseName } from "@/utils/normalize";
 
+const EXPANDED_KEY = "TextMind.expandedFolders";
+
+function loadExpandedPaths(rootPath: string): Set<string> {
+  try {
+    const stored = JSON.parse(localStorage.getItem(EXPANDED_KEY) || "{}") as
+      Record<string, unknown>;
+    const paths = stored[rootPath];
+    return new Set(
+      Array.isArray(paths)
+        ? paths.filter((path): path is string => typeof path === "string")
+        : [],
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+function saveExpandedPaths(rootPath: string, paths: Set<string>): void {
+  if (!rootPath) return;
+  try {
+    const stored = JSON.parse(localStorage.getItem(EXPANDED_KEY) || "{}") as
+      Record<string, unknown>;
+    stored[rootPath] = [...paths];
+    localStorage.setItem(EXPANDED_KEY, JSON.stringify(stored));
+  } catch {
+    // localStorage can be unavailable in tests and restricted webviews.
+  }
+}
+
 function createFolderNode(entry: {
   name?: string;
   path?: string;
@@ -34,6 +63,7 @@ function normalizeFolderEntries(entries: unknown): FolderNode[] {
 export const useWorkspaceStore = defineStore("workspace", () => {
   const root = ref<string>("");
   const tree = ref<FolderNode | null>(null);
+  let expandedPaths = new Set<string>();
 
   function findNode(
     path: string,
@@ -80,6 +110,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
         return false;
       }
       node.children = normalizeFolderEntries(res.entries);
+      for (const child of node.children) {
+        if (child.isDir) child.expanded = expandedPaths.has(child.path);
+      }
       node.loaded = true;
       node.error = "";
       return true;
@@ -97,9 +130,11 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     const p = String(path || "").trim();
     root.value = p;
     if (!p) {
+      expandedPaths = new Set();
       tree.value = null;
       return false;
     }
+    expandedPaths = loadExpandedPaths(p);
     const rootNode = reactive<FolderNode>({
       name: pathBaseName(p) || p,
       path: p,
@@ -115,7 +150,10 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     // Retry up to 3 times with delay if backend isn't ready yet
     for (let attempt = 0; attempt < 3; attempt++) {
       const ok = await ensureChildren(rootNode);
-      if (ok) return true;
+      if (ok) {
+        await restoreExpandedChildren(rootNode);
+        return true;
+      }
       if (attempt < 2) {
         await new Promise((r) => setTimeout(r, 800));
       }
@@ -127,14 +165,26 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     const node = findNode(path);
     if (!node || !node.isDir) return;
     node.expanded = !node.expanded;
+    if (node.expanded) expandedPaths.add(node.path);
+    else expandedPaths.delete(node.path);
+    saveExpandedPaths(root.value, expandedPaths);
     if (node.expanded && !node.loaded) {
       await ensureChildren(node);
+      await restoreExpandedChildren(node);
+    }
+  }
+
+  async function restoreExpandedChildren(node: FolderNode): Promise<void> {
+    for (const child of node.children) {
+      if (!child.isDir || !child.expanded) continue;
+      if (await ensureChildren(child)) await restoreExpandedChildren(child);
     }
   }
 
   function clear(): void {
     root.value = "";
     tree.value = null;
+    expandedPaths = new Set();
   }
 
   return {
