@@ -28,6 +28,10 @@ function onNew() {
   tabs.addNewTab();
 }
 
+function onSplit() {
+  tabs.openSplit();
+}
+
 function onDragStart(i: number) {
   dragFrom.value = i;
   dragOver.value = null;
@@ -112,6 +116,14 @@ function reset() {
         @drag-leave="onDragLeave"
       />
     </div>
+    <button
+      class="w-8 h-8 border-0 bg-transparent cursor-pointer text-[17px] leading-none text-muted hover:text-text disabled:opacity-30 disabled:cursor-not-allowed"
+      title="打开右侧分屏"
+      :disabled="tabList.length < 2"
+      @click="onSplit"
+    >
+      ◫
+    </button>
     <button
       class="w-8 h-8 border-0 bg-transparent cursor-pointer text-[18px] leading-none text-muted hover:text-text"
       @click="onNew"

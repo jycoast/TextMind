@@ -31,7 +31,9 @@ TextMind 基于 [Wails v2](https://wails.io/)（Go）+ [Vue 3](https://vuejs.org
 ### 编辑器与会话
 
 - **多标签编辑器**：基于 Monaco，支持语法高亮、Minimap、列编辑、拖拽排序、查找替换（`Ctrl+F` / `Ctrl+H`）。
-- **Markdown 所见即所得**：基于 Milkdown 的 Typora 风格 WYSIWYG 编辑器，状态栏一键在「Source / WYSIWYG」之间切换；不需要任何额外安装。
+- **Markdown 三种编辑模式**：在 Milkdown 所见即所得、Monaco 源码 + 实时预览、纯源码之间切换；分栏支持同步滚动和拖动调整比例。
+- **本地 Markdown 导航**：预览标题生成稳定锚点，相对 `.md` 链接在应用内打开；相对图片按当前文档目录安全加载（常见图片格式，单图最大 15 MB）。
+- **导出 PDF**：在「文件 → 导出 Markdown 为 PDF...」中输出 A4 PDF，保留代码高亮、表格、公式、Mermaid 和本地图片；使用系统 Microsoft Edge 生成，无需额外安装 PDF 引擎。
 - **Markdown 大纲面板**（`Ctrl+Shift+O`）：左侧侧栏自动抽取标题层级，点击跳转到对应位置；仅在 Markdown 标签页显示。
 - **文件浏览器**：左侧目录树，可打开任意工作区文件夹，支持文件 / 目录排序、刷新。
 - **会话自动恢复**：标签内容、未保存修改、当前工作区、最近文件，下次启动原样还原（含 Monaco 视图状态）。
@@ -117,7 +119,7 @@ Get-FileHash .\TextMind-vX.Y.Z-windows-amd64.exe -Algorithm SHA256
 | `Ctrl+Shift+O` | `outline.toggle` | 切换 Markdown 大纲面板 |
 | `Esc` | — | 关闭顶层弹窗 / 菜单（不可改） |
 
-另有以下默认未绑定的动作，可在快捷键设置中按需挂载：打开文件、打开文件夹、自动识别语言、文本对比、提取文本、去重、保留单次出现项、保留重复项、转 IN 列表、格式化 JSON、压缩 JSON、插入选中文本到 AI 对话框、切换主题、切换 Markdown 源码 / 富文本模式 等。
+另有以下默认未绑定的动作，可在快捷键设置中按需挂载：打开文件、打开文件夹、自动识别语言、文本对比、提取文本、去重、保留单次出现项、保留重复项、转 IN 列表、格式化 JSON、压缩 JSON、插入选中文本到 AI 对话框、切换主题、切换 Markdown 源码 / 所见即所得模式 等。
 
 > Monaco 自带的多光标 / 撤销重做 / 选词等内置键位（`Alt+点击`、`Ctrl+Z` 等）保持原生行为。全局快捷键监听运行在 **capture 阶段** 并仅在命中已注册命令时才阻止默认行为，因此不会破坏编辑器内部键位。
 
@@ -188,7 +190,7 @@ TextMind 内核只提供窗口、文件 I/O、Tab、编辑器宿主、命令派�
 | `textmind.json` | JSON | 格式化 / 压缩 / 元素数 inlay hint |
 | `textmind.ai` | AI | 侧边面板、询问选区、配置 UI |
 | `textmind.editor.monaco` | Monaco Editor | 默认编辑器实现 |
-| `textmind.editor.markdown` | Markdown WYSIWYG | Milkdown 实现 + Source/WYSIWYG 切换 |
+| `textmind.editor.markdown` | Markdown 编辑器 | Milkdown WYSIWYG + 源码预览分栏 + 纯源码 |
 | `textmind.outline` | Markdown 大纲 | 标题侧栏 |
 | `textmind.cos-upload` | 腾讯云 COS 图片上传 | Markdown 粘贴图片 → COS |
 | `textmind.theme` | Theme | 4 套主题切换 |

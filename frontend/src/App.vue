@@ -3,7 +3,7 @@ import { onMounted } from "vue";
 import { storeToRefs } from "pinia";
 import TopBar from "@/components/TopBar.vue";
 import TabBar from "@/components/TabBar.vue";
-import EditorHost from "@/components/EditorHost.vue";
+import EditorWorkspace from "@/components/EditorWorkspace.vue";
 import ActivityBar from "@/components/ActivityBar.vue";
 import SidebarContainer from "@/components/SidebarContainer.vue";
 import BottomBar from "@/components/BottomBar.vue";
@@ -88,7 +88,7 @@ onMounted(async () => {
     <div class="editor-pane flex-1 min-w-0 min-h-0 flex flex-col">
       <TabBar />
       <FileChangeBanner />
-      <EditorHost />
+      <EditorWorkspace />
     </div>
     <PluginSidePanels position="right" />
   </div>

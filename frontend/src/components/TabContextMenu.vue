@@ -7,13 +7,14 @@ const menus = useMenusStore();
 const tabs = useTabsStore();
 const { tabContextMenu } = storeToRefs(menus);
 
-function handle(action: "close" | "close-right" | "close-left" | "close-others") {
+function handle(action: "split" | "close" | "close-right" | "close-left" | "close-others") {
   const ctx = menus.tabContextMenu;
   menus.closeTabContextMenu();
   if (!ctx) return;
   const i = ctx.tabIndex;
   if (i < 0) return;
-  if (action === "close") tabs.closeTab(i);
+  if (action === "split") tabs.openSplit(i);
+  else if (action === "close") tabs.closeTab(i);
   else if (action === "close-right") tabs.closeRight(i);
   else if (action === "close-left") tabs.closeLeft(i);
   else if (action === "close-others") tabs.closeOthers(i);
@@ -30,6 +31,11 @@ function handle(action: "close" | "close-right" | "close-left" | "close-others")
     }"
     @click.stop
   >
+    <button
+      :disabled="tabs.tabs.length < 2 || tabs.tabs[tabContextMenu.tabIndex]?.id === tabs.current?.id"
+      @click="handle('split')"
+    >在右侧分屏打开</button>
+    <div class="tm-context-menu__separator"></div>
     <button @click="handle('close')">关闭tab</button>
     <button @click="handle('close-right')">关闭右侧tab</button>
     <button @click="handle('close-left')">关闭左侧tab</button>

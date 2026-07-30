@@ -53,12 +53,48 @@ export const useTabsStore = defineStore("tabs", () => {
   const selectedIndex = ref<number>(0);
   const nextTabSeq = ref<number>(0);
   const columnMode = ref<boolean>(false);
+  const splitTabId = ref<string | null>(null);
+  const splitRatio = ref<number>(0.5);
   const adapter = shallowRef<EditorAdapter | null>(null);
   const programmaticUpdate = ref<boolean>(false);
 
   const current = computed<Tab | null>(
     () => tabs.value[selectedIndex.value] || null,
   );
+  const splitTab = computed<Tab | null>(
+    () => tabs.value.find((tab) => tab.id === splitTabId.value) || null,
+  );
+
+  function closeSplit(): void {
+    splitTabId.value = null;
+  }
+
+  function setSplitRatio(value: number): void {
+    splitRatio.value = Math.max(0.25, Math.min(0.75, value));
+  }
+
+  function setSplitTab(id: string): void {
+    if (!tabs.value.some((tab) => tab.id === id)) return;
+    if (current.value?.id === id) return;
+    splitTabId.value = id;
+  }
+
+  function openSplit(index?: number): boolean {
+    if (tabs.value.length < 2) return false;
+    const currentIndex = selectedIndex.value;
+    const requested = index == null ? -1 : index;
+    const targetIndex = requested >= 0 && requested < tabs.value.length && requested !== currentIndex
+      ? requested
+      : (currentIndex + 1) % tabs.value.length;
+    splitTabId.value = tabs.value[targetIndex]?.id || null;
+    return Boolean(splitTabId.value);
+  }
+
+  function reconcileSplit(): void {
+    if (!splitTabId.value) return;
+    if (!tabs.value.some((tab) => tab.id === splitTabId.value)) closeSplit();
+    if (splitTabId.value === current.value?.id) closeSplit();
+  }
 
   function setAdapter(a: EditorAdapter | null): void {
     adapter.value = a;
@@ -125,9 +161,14 @@ export const useTabsStore = defineStore("tabs", () => {
 
   function selectTab(i: number): void {
     if (i < 0 || i >= tabs.value.length) return;
+    const outgoingId = current.value?.id || null;
+    const incomingId = tabs.value[i]?.id || null;
     persistCurrentText();
     persistCurrentViewState();
     selectedIndex.value = i;
+    if (incomingId && incomingId === splitTabId.value) {
+      splitTabId.value = outgoingId && outgoingId !== incomingId ? outgoingId : null;
+    }
     renderCurrentIntoEditor();
   }
 
@@ -143,6 +184,7 @@ export const useTabsStore = defineStore("tabs", () => {
       0,
       Math.min(nextSelected, nextTabs.length - 1),
     );
+    reconcileSplit();
     renderCurrentIntoEditor();
   }
 
@@ -466,6 +508,7 @@ export const useTabsStore = defineStore("tabs", () => {
       selectedIndex.value = 0;
       nextTabSeq.value = 0;
     }
+    closeSplit();
     // Push the freshly-restored selection into the editor in case the
     // adapter already mounted before us (the common path: child components
     // mount before App.vue's onMounted runs loadSessionIntoStores).
@@ -509,9 +552,16 @@ export const useTabsStore = defineStore("tabs", () => {
     selectedIndex,
     nextTabSeq,
     columnMode,
+    splitTabId,
+    splitRatio,
     adapter,
     programmaticUpdate,
     current,
+    splitTab,
+    openSplit,
+    closeSplit,
+    setSplitTab,
+    setSplitRatio,
     setAdapter,
     findIndexByPath,
     persistCurrentText,

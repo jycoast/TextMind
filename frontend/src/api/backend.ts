@@ -34,6 +34,20 @@ export const backend = {
     encoding: string,
   ): Promise<main.OpenFileResult> =>
     App.OpenTextFileByPathWithEncoding(path, encoding),
+  resolveMarkdownImage: (
+    documentPath: string,
+    source: string,
+  ): Promise<main.MarkdownImageResult> =>
+    App.ResolveMarkdownImage(documentPath, source),
+  resolveMarkdownLink: (
+    documentPath: string,
+    reference: string,
+  ): Promise<main.MarkdownLinkResult> =>
+    App.ResolveMarkdownLink(documentPath, reference),
+  exportMarkdownPDF: (
+    defaultName: string,
+    html: string,
+  ): Promise<main.SaveFileResult> => App.ExportMarkdownPDF(defaultName, html),
   saveTextFile: (path: string, text: string): Promise<main.SaveFileResult> =>
     App.SaveTextFile(path, text),
   saveTextFileWithEncoding: (

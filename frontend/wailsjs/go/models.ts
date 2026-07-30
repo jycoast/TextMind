@@ -412,6 +412,38 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class MarkdownImageResult {
+	    path: string;
+	    dataUrl: string;
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MarkdownImageResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.dataUrl = source["dataUrl"];
+	        this.error = source["error"];
+	    }
+	}
+	export class MarkdownLinkResult {
+	    path: string;
+	    fragment: string;
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MarkdownLinkResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.fragment = source["fragment"];
+	        this.error = source["error"];
+	    }
+	}
 	export class OpenFileResult {
 	    name: string;
 	    path: string;

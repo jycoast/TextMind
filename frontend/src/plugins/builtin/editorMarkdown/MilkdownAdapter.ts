@@ -96,8 +96,13 @@ import {
 } from "./formattingToolbar";
 import { createMarkdownChangeGuard } from "./changeGuard";
 import { handleMarkdownLinkClick } from "@/composables/markdownLinks";
+import {
+  handleDocumentMarkdownLinkClick,
+} from "@/composables/markdownResources";
+import { createLocalImageView } from "./localImageView";
+import { tabularTextToMarkdown } from "./tabularPaste";
 
-// The bundled @milkdown/theme-nord is a hardcoded dark theme which leaves
+// Milkdown's Nord theme is a hardcoded dark theme which leaves
 // body text invisible in our light mode. We ship our own minimal stylesheet
 // that drives every visual property off the app's CSS variables so the
 // editor adapts to both themes automatically.
@@ -152,6 +157,8 @@ function sanitizeSerializedMarkdown(md: string): string {
 export interface MilkdownAdapterOptions {
   host: HTMLElement;
   initialTheme: string;
+  documentPath?: string;
+  onExportPdf?: () => void | Promise<void>;
 }
 
 interface MilkdownViewState {
@@ -164,7 +171,7 @@ export function createMilkdownAdapter(
   options: MilkdownAdapterOptions,
 ): EditorAdapter {
   ensureStylesInjected();
-  const { host } = options;
+  const { host, documentPath = "", onExportPdf } = options;
 
   // Wrapper div so we can scope styles without colliding with Monaco's host.
   const inner = document.createElement("div");
@@ -326,6 +333,7 @@ export function createMilkdownAdapter(
           });
           break;
         case "hr": invoke(insertHrCommand); break;
+        case "export-pdf": void onExportPdf?.(); break;
         default: invoke(createCodeBlockCommand); break;
       }
       getView().focus();
@@ -346,13 +354,28 @@ export function createMilkdownAdapter(
     for (const h of contextMenuHandlers) h(ev);
   };
   inner.addEventListener("contextmenu", onContextMenuListener);
-  inner.addEventListener("click", handleMarkdownLinkClick);
+  const onMarkdownClick = (event: MouseEvent) => {
+    if (documentPath) {
+      handleDocumentMarkdownLinkClick(event, inner, documentPath);
+      return;
+    }
+    handleMarkdownLinkClick(event);
+  };
+  inner.addEventListener("click", onMarkdownClick);
 
   // Paste handlers fire BEFORE ProseMirror's default insert so plugins like
   // the COS image uploader can hijack the event, upload the blob async, and
   // call insertText() with the resulting markdown.
   const pasteHandlers: Array<(ev: ClipboardEvent) => boolean | void> = [];
   const onPasteListener = (ev: ClipboardEvent) => {
+    const tableMarkdown = tabularTextToMarkdown(
+      ev.clipboardData?.getData("text/plain") || "",
+    );
+    if (tableMarkdown && insertMarkdownAtSelection(tableMarkdown)) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      return;
+    }
     if (pasteHandlers.length === 0) return;
     for (const h of pasteHandlers) {
       const consumed = h(ev) === true || ev.defaultPrevented;
@@ -364,6 +387,30 @@ export function createMilkdownAdapter(
     }
   };
   inner.addEventListener("paste", onPasteListener, true);
+
+  function insertMarkdownAtSelection(text: string): boolean {
+    if (!editor || !booted || !text) return false;
+    try {
+      editor.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        const parser = ctx.get(parserCtx);
+        const parsed = parser(text);
+        if (parsed) {
+          view.dispatch(
+            view.state.tr
+              .replaceSelection(new Slice(parsed.content, 0, 0))
+              .scrollIntoView(),
+          );
+        } else {
+          view.dispatch(view.state.tr.insertText(text));
+        }
+      });
+      return true;
+    } catch (err) {
+      console.warn("[milkdown] insert markdown:", err);
+      return false;
+    }
+  }
 
   function emitCursor() {
     for (const h of cursorHandlers) h();
@@ -460,6 +507,8 @@ export function createMilkdownAdapter(
       // the keymap also lets Mod-/Shift-Enter pop out of a code block.
       .use(trailingParagraphPlugin)
       .use(codeBlockExitKeymap);
+
+    if (documentPath) e.use(createLocalImageView(documentPath));
 
     try {
       await e.create();
@@ -593,8 +642,7 @@ export function createMilkdownAdapter(
     },
 
     setTheme: () => {
-      // Theme is fixed (nord) for now; light/dark toggle would require a
-      // dedicated theme. Future extension point.
+      // Styles use application CSS variables and react to theme changes.
     },
 
     getValue: () => readMarkdown(),
@@ -736,37 +784,16 @@ export function createMilkdownAdapter(
     },
 
     insertText: (text: string) => {
-      if (!editor || !booted || !text) return false;
-      try {
-        editor.action((ctx) => {
-          const view = ctx.get(editorViewCtx);
-          const parser = ctx.get(parserCtx);
-          // Run the same markdown parser Milkdown uses for the initial doc,
-          // then drop the wrapping <doc> and splice its content directly into
-          // the current selection. This makes `![alt](url)` become a real
-          // image node rather than literal text.
-          const parsed = parser(text);
-          if (parsed) {
-            const slice = new Slice(parsed.content, 0, 0);
-            view.dispatch(
-              view.state.tr.replaceSelection(slice).scrollIntoView(),
-            );
-          } else {
-            view.dispatch(view.state.tr.insertText(text));
-          }
-        });
-        return true;
-      } catch (err) {
-        console.warn("[milkdown] insertText:", err);
-        return false;
-      }
+      // Parse Markdown and splice its document content into the selection so
+      // links, images and pasted TSV tables become native editor nodes.
+      return insertMarkdownAtSelection(text);
     },
 
     dispose: () => {
       if (disposed) return;
       disposed = true;
       inner.removeEventListener("contextmenu", onContextMenuListener);
-      inner.removeEventListener("click", handleMarkdownLinkClick);
+      inner.removeEventListener("click", onMarkdownClick);
       inner.removeEventListener("paste", onPasteListener, true);
       if (findWidget) {
         findWidget.destroy();

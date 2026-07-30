@@ -42,6 +42,10 @@ export function DownloadAndInstallUpdate(arg1) {
   return window['go']['main']['App']['DownloadAndInstallUpdate'](arg1);
 }
 
+export function ExportMarkdownPDF(arg1, arg2) {
+  return window['go']['main']['App']['ExportMarkdownPDF'](arg1, arg2);
+}
+
 export function ExtractFromText(arg1, arg2) {
   return window['go']['main']['App']['ExtractFromText'](arg1, arg2);
 }
@@ -156,6 +160,14 @@ export function RefreshFileWatch(arg1) {
 
 export function RenameConversation(arg1, arg2) {
   return window['go']['main']['App']['RenameConversation'](arg1, arg2);
+}
+
+export function ResolveMarkdownImage(arg1, arg2) {
+  return window['go']['main']['App']['ResolveMarkdownImage'](arg1, arg2);
+}
+
+export function ResolveMarkdownLink(arg1, arg2) {
+  return window['go']['main']['App']['ResolveMarkdownLink'](arg1, arg2);
 }
 
 export function SaveAIConfig(arg1) {

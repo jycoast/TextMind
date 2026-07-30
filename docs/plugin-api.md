@@ -1,6 +1,6 @@
 # TextMind Plugin API
 
-TextMind 采用「内核 + 贡献点」的插件架构：核心仅负责窗口、文件 I/O、Tab、编辑器宿主、命令派发、菜单/侧边/状态栏/设置注册表。其他功能（AI、JSON、文本工具、Markdown 富文本…）全部以**插件**形式接入。
+TextMind 采用「内核 + 贡献点」的插件架构：核心仅负责窗口、文件 I/O、Tab、编辑器宿主、命令派发、菜单/侧边/状态栏/设置注册表。其他功能（AI、JSON、文本工具、Markdown 所见即所得…）全部以**插件**形式接入。
 
 本文档面向插件作者，讲清楚 manifest、Plugin、PluginContext、注册表、宿主-后端桥的契约。
 
@@ -89,7 +89,8 @@ keybindings.bindDefault('json.format', 'Ctrl+Alt+J')
 
 参考实现：
 - `plugins/builtin/editorMonaco/` — 默认源码编辑器（priority 0，match → true）
-- `plugins/builtin/editorMarkdown/MilkdownAdapter.ts` — Markdown 富文本（priority 10，仅 `.md/.markdown/.mdx`）
+- `plugins/builtin/editorMarkdown/MilkdownAdapter.ts` — Markdown 所见即所得 10；MDX、Front Matter、原始 HTML、脚注和引用式链接会自动留在无损源码模式）
+- `plugins/builtin/editorMarkdown/MarkdownSplitAdapter.ts` — Markdown 源码 + 实时预览（标题锚点、本地相对资源、同步滚动和可调分栏）
 
 ## 6. 后端桥（PluginCall）
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   renderMarkdown,
   renderMarkdownCached,
+  renderDocumentMarkdown,
   renderStreamingMarkdown,
 } from "./useMarkdown";
 
@@ -14,6 +15,12 @@ describe("Markdown rendering", () => {
     const html = renderMarkdown("[Open](https://example.com)");
     expect(html).toContain('target="_blank"');
     expect(html).toContain('rel="noopener noreferrer"');
+  });
+
+  it("keeps relative document links inside the application", () => {
+    const html = renderDocumentMarkdown("[Next](./next.md)");
+    expect(html).toContain('href="./next.md"');
+    expect(html).not.toContain('target="_blank"');
   });
 
   it("adds private lazy-loading image attributes", () => {
@@ -59,13 +66,31 @@ describe("Markdown rendering", () => {
 
   it("consumes front matter instead of rendering it as a heading", () => {
     const html = renderMarkdown("---\ntitle: Demo\n---\n# Body");
-    expect(html).toContain("<h1>Body</h1>");
+    expect(html).toContain('<h1 id="body">Body</h1>');
     expect(html).not.toContain("title: Demo");
   });
 
   it("consumes TOML front matter", () => {
     const html = renderMarkdown("+++\ntitle = \"Demo\"\n+++\n# Body");
-    expect(html).toContain("<h1>Body</h1>");
+    expect(html).toContain('<h1 id="body">Body</h1>');
     expect(html).not.toContain("title =");
+  });
+
+  it("adds stable Unicode heading anchors and de-duplicates them", () => {
+    const html = renderDocumentMarkdown("# 中文标题\n\n## 中文标题");
+    expect(html).toMatch(/<h1[^>]*id="中文标题"/);
+    expect(html).toMatch(/<h2[^>]*id="中文标题-1"/);
+  });
+
+  it("keeps soft line breaks portable in document previews", () => {
+    expect(renderDocumentMarkdown("first\nsecond")).not.toContain("<br>");
+    expect(renderMarkdown("first\nsecond")).toContain("<br>");
+  });
+
+  it("adds source line anchors to document preview blocks", () => {
+    const html = renderDocumentMarkdown("# Heading\n\nParagraph\n\n- item");
+    expect(html).toContain('data-source-line="1"');
+    expect(html).toContain('data-source-line="3"');
+    expect(html).toContain('data-source-line="5"');
   });
 });

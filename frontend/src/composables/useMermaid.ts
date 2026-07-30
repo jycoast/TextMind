@@ -37,21 +37,27 @@ async function getMermaid() {
   return mermaidPromise;
 }
 
-export async function renderMermaidSvg(source: string): Promise<string> {
+export async function renderMermaidSvg(
+  source: string,
+  theme?: "default" | "dark",
+): Promise<string> {
   ensureThemeObserver();
   const mermaid = await getMermaid();
   mermaid.initialize({
     startOnLoad: false,
     securityLevel: "strict",
     suppressErrorRendering: true,
-    theme: isLightTheme() ? "default" : "dark",
+    theme: theme ?? (isLightTheme() ? "default" : "dark"),
   });
   renderSequence += 1;
   const { svg } = await mermaid.render(`tm-mermaid-${renderSequence}`, source);
   return svg;
 }
 
-export async function renderMermaidElements(root: ParentNode): Promise<void> {
+export async function renderMermaidElements(
+  root: ParentNode,
+  theme?: "default" | "dark",
+): Promise<void> {
   const diagrams = root.querySelectorAll<HTMLElement>(
     '.tm-mermaid[data-mermaid-state="pending"]',
   );
@@ -68,6 +74,7 @@ export async function renderMermaidElements(root: ParentNode): Promise<void> {
       try {
         output.innerHTML = await renderMermaidSvg(
           sourceElement.textContent || "",
+          theme,
         );
         diagram.dataset.mermaidState = "rendered";
       } catch (err) {

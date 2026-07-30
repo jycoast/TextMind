@@ -9,6 +9,7 @@ import {
   Code2,
   Columns3,
   createElement as createIconElement,
+  Download,
   Image,
   Italic,
   Link2,
@@ -51,7 +52,8 @@ export type FormattingAction =
   | "table-delete-column"
   | "table-delete"
   | "table-align"
-  | "hr";
+  | "hr"
+  | "export-pdf";
 
 export interface ToolbarHandle {
   element: HTMLDivElement;
@@ -472,6 +474,8 @@ export function createFormattingToolbar(
   });
   element.appendChild(tablePanel);
   addButton({ action: "hr", title: "插入分隔线", icon: Minus });
+  element.appendChild(separator());
+  addButton({ action: "export-pdf", title: "导出为 PDF", icon: Download });
 
   const onToolbarKeydown = (event: KeyboardEvent) => {
     if (event.key === "Escape" && openPanel) {
@@ -529,10 +533,16 @@ export function createFormattingToolbar(
       if (insertTableItem) {
         insertTableItem.disabled = currentState.inTable;
         insertTableItem.setAttribute("aria-disabled", String(currentState.inTable));
+        insertTableItem.title = currentState.inTable
+          ? "请先将光标移出当前表格"
+          : "插入 3 x 3 表格";
       }
       for (const item of tableContextItems) {
         item.disabled = !currentState.inTable;
         item.setAttribute("aria-disabled", String(!currentState.inTable));
+        item.title = currentState.inTable
+          ? ""
+          : "请先将光标置于表格单元格内";
       }
       unlinkButton.disabled = !currentState.link;
       removeImage.disabled = !currentState.image;

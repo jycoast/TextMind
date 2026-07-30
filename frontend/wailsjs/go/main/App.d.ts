@@ -24,6 +24,8 @@ export function DeleteConversation(arg1:string):Promise<main.SimpleResult>;
 
 export function DownloadAndInstallUpdate(arg1:main.InstallUpdateRequest):Promise<main.SimpleResult>;
 
+export function ExportMarkdownPDF(arg1:string,arg2:string):Promise<main.SaveFileResult>;
+
 export function ExtractFromText(arg1:string,arg2:extract.Options):Promise<main.ExtractResult>;
 
 export function FetchAIModels(arg1:main.AIConfigDTO):Promise<main.FetchModelsResult>;
@@ -81,6 +83,10 @@ export function ReadPluginFile(arg1:string,arg2:string):Promise<string>;
 export function RefreshFileWatch(arg1:string):Promise<void>;
 
 export function RenameConversation(arg1:string,arg2:string):Promise<main.SimpleResult>;
+
+export function ResolveMarkdownImage(arg1:string,arg2:string):Promise<main.MarkdownImageResult>;
+
+export function ResolveMarkdownLink(arg1:string,arg2:string):Promise<main.MarkdownLinkResult>;
 
 export function SaveAIConfig(arg1:main.AIConfigDTO):Promise<main.SimpleResult>;
 

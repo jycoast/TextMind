@@ -9,6 +9,8 @@ import {
 } from "@/composables/useLanguageOptions";
 import { backend } from "@/api/backend";
 import type { EncodingMeta } from "@/types";
+import { isMarkdownDocument } from "@/composables/markdownDialect";
+import { analyzeMarkdownQuality } from "@/composables/markdownQuality";
 
 const tabs = useTabsStore();
 const ui = useUiStore();
@@ -86,6 +88,12 @@ function formatBytes(n: number): string {
 }
 
 const fileSizeLabel = computed(() => formatBytes(fileByteCount.value));
+const markdownQuality = computed(() => {
+  const tab = current.value;
+  return tab && isMarkdownDocument(tab)
+    ? analyzeMarkdownQuality(tab.text || "")
+    : null;
+});
 
 // ---- 编码 ----
 const encodingOptions = ref<EncodingMeta[]>([]);
@@ -302,6 +310,18 @@ onBeforeUnmount(() => {
     >
       {{ fileSizeLabel }}
     </div>
+
+    <template v-if="markdownQuality">
+      <span class="tm-status-sep" :style="{ background: 'var(--hairline)' }"></span>
+      <div
+        class="tm-status-item"
+        :style="{ color: markdownQuality.warnings.length ? 'var(--warning, #d19a66)' : 'var(--muted)' }"
+        :title="markdownQuality.warnings.length ? markdownQuality.warnings.join('；') : '未发现基础写作问题'"
+      >
+        {{ markdownQuality.wordCount }} 字 · {{ markdownQuality.readingMinutes }} 分钟
+        <span v-if="markdownQuality.warnings.length"> · ⚠ {{ markdownQuality.warnings.length }}</span>
+      </div>
+    </template>
 
     <span
       class="tm-status-sep"

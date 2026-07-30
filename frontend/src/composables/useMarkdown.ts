@@ -10,6 +10,7 @@ const CACHE_LIMIT = 200;
 const MAX_CACHE_SOURCE_LENGTH = 100_000;
 const renderCache = new Map<string, string>();
 let fullMarkdown: MarkdownIt | null = null;
+let documentMarkdown: MarkdownIt | null = null;
 let streamingMarkdown: MarkdownIt | null = null;
 
 function escapeHtml(value: string): string {
@@ -25,7 +26,7 @@ function configureSafeRenderer(md: MarkdownIt): void {
   const originalLinkOpen = md.renderer.rules.link_open;
   md.renderer.rules.link_open = (tokens, index, options, env, self) => {
     const href = tokens[index].attrGet("href") || "";
-    if (href && !href.startsWith("#")) {
+    if (/^(https?:|mailto:)/iu.test(href)) {
       tokens[index].attrSet("target", "_blank");
       tokens[index].attrSet("rel", "noopener noreferrer");
     }
@@ -74,6 +75,61 @@ function configureTaskLists(md: MarkdownIt): void {
         "class",
         "task-list-item",
       );
+    }
+  });
+}
+
+function headingInlineText(token: Token | undefined): string {
+  if (!token?.children?.length) return token?.content || "";
+  return token.children
+    .map((child) => {
+      if (child.type === "image") {
+        return child.content || child.attrGet("alt") || "";
+      }
+      if (child.type === "softbreak" || child.type === "hardbreak") return " ";
+      return child.type === "html_inline" ? "" : child.content || "";
+    })
+    .join("");
+}
+
+/** GitHub-like, Unicode-safe heading slug shared by preview and outline. */
+export function slugifyMarkdownHeading(value: string): string {
+  const slug = value
+    .normalize("NFKC")
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{M}\p{N}\s_-]/gu, "")
+    .replace(/\s+/gu, "-");
+  return slug || "section";
+}
+
+function configureHeadingAnchors(md: MarkdownIt): void {
+  md.core.ruler.after("inline", "textmind_heading_anchors", (state) => {
+    const counts = new Map<string, number>();
+    for (let index = 0; index < state.tokens.length; index += 1) {
+      const open = state.tokens[index];
+      if (open.type !== "heading_open") continue;
+      const base = slugifyMarkdownHeading(
+        headingInlineText(state.tokens[index + 1]),
+      );
+      const duplicate = counts.get(base) || 0;
+      counts.set(base, duplicate + 1);
+      const slug = duplicate === 0 ? base : `${base}-${duplicate}`;
+      open.attrSet("id", slug);
+      open.meta = { ...(open.meta || {}), textmindSlug: slug };
+    }
+  });
+}
+
+function configureSourceLineAnchors(md: MarkdownIt): void {
+  md.core.ruler.after("block", "textmind_source_lines", (state) => {
+    for (const token of state.tokens) {
+      if (!token.map || token.map.length < 1) continue;
+      // Opening block tokens render attributes naturally. Atomic blocks such
+      // as fences need dedicated renderers and continue using proportional
+      // scroll as a fallback.
+      if (token.nesting !== 1) continue;
+      token.attrSet("data-source-line", String(token.map[0] + 1));
     }
   });
 }
@@ -127,11 +183,13 @@ function configureMermaidRenderer(md: MarkdownIt): void {
 function createMarkdown(
   autoHighlight: boolean,
   enableMermaid: boolean,
+  breaks: boolean,
+  sourceLines = false,
 ): MarkdownIt {
   const md = new MarkdownIt({
     html: false,
     linkify: true,
-    breaks: true,
+    breaks,
     typographer: false,
     highlight(code: string, lang: string): string {
       const language = (lang || "").trim();
@@ -165,6 +223,8 @@ function createMarkdown(
   md.use(frontMatterPlugin, () => {});
   configureTomlFrontMatter(md);
   configureTaskLists(md);
+  configureHeadingAnchors(md);
+  if (sourceLines) configureSourceLineAnchors(md);
   if (enableMermaid) configureMermaidRenderer(md);
   configureSafeRenderer(md);
   return md;
@@ -172,12 +232,19 @@ function createMarkdown(
 
 /** Shared CommonMark/GFM-like renderer used by chat, release notes and outline. */
 export function getMarkdown(): MarkdownIt {
-  if (!fullMarkdown) fullMarkdown = createMarkdown(true, true);
+  if (!fullMarkdown) fullMarkdown = createMarkdown(true, true, true);
   return fullMarkdown;
 }
 
 export function renderMarkdown(text: string): string {
   return text ? getMarkdown().render(text) : "";
+}
+
+/** Document preview favors portable CommonMark and predictable live cost. */
+export function renderDocumentMarkdown(text: string): string {
+  if (!text) return "";
+  if (!documentMarkdown) documentMarkdown = createMarkdown(false, true, false, true);
+  return documentMarkdown.render(text);
 }
 
 /** Render immutable messages without repeating parsing and syntax highlighting. */
@@ -202,6 +269,6 @@ export function renderMarkdownCached(text: string): string {
 /** Streaming output skips expensive language auto-detection until completion. */
 export function renderStreamingMarkdown(text: string): string {
   if (!text) return "";
-  if (!streamingMarkdown) streamingMarkdown = createMarkdown(false, false);
+  if (!streamingMarkdown) streamingMarkdown = createMarkdown(false, false, true);
   return streamingMarkdown.render(text);
 }

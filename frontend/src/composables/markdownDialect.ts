@@ -5,7 +5,7 @@ export type MarkdownDocumentKind = "markdown" | "mdx" | "other";
 
 export interface WysiwygCompatibility {
   compatible: boolean;
-  reason: "mdx" | "frontmatter" | "html" | "footnotes" | null;
+  reason: "mdx" | "frontmatter" | "html" | "footnotes" | "references" | null;
   message: string;
 }
 
@@ -34,7 +34,7 @@ function hasFrontmatter(source: string): boolean {
 
 function analyzeSourceFeatures(
   source: string,
-): { html: boolean; footnotes: boolean } {
+): { html: boolean; footnotes: boolean; references: boolean } {
   const env: { references?: Record<string, unknown> } = {};
   const tokens = markdownSourceParser.parse(source, env);
   const footnotes =
@@ -58,7 +58,10 @@ function analyzeSourceFeatures(
   const html = tokens.some(
     (token) => token.type === "html_block" || token.type === "html_inline",
   );
-  return { html, footnotes };
+  const references = Object.keys(env.references || {}).some(
+    (label) => !label.startsWith("^"),
+  );
+  return { html, footnotes, references };
 }
 
 /**
@@ -72,7 +75,7 @@ export function analyzeWysiwygCompatibility(
     return {
       compatible: false,
       reason: "mdx",
-      message: "MDX 包含 JSX/ESM 语法，已使用源码模式以避免内容丢失",
+      message: "MDX 包含 JSX/ESM 语法，请使用源码或分栏模式以避免内容丢失",
     };
   }
 
@@ -81,7 +84,7 @@ export function analyzeWysiwygCompatibility(
     return {
       compatible: false,
       reason: "frontmatter",
-      message: "检测到 Front Matter，已使用源码模式以保持元数据原样",
+      message: "检测到 Front Matter，请使用源码或分栏模式以保持元数据原样",
     };
   }
   const features = analyzeSourceFeatures(source);
@@ -89,14 +92,21 @@ export function analyzeWysiwygCompatibility(
     return {
       compatible: false,
       reason: "html",
-      message: "检测到原始 HTML，已使用源码模式以避免标签被改写",
+      message: "检测到原始 HTML，请使用源码或分栏模式以避免标签被改写",
     };
   }
   if (features.footnotes) {
     return {
       compatible: false,
       reason: "footnotes",
-      message: "检测到脚注语法，已使用源码模式以避免引用被改写",
+      message: "检测到脚注语法，请使用源码或分栏模式以避免引用被改写",
+    };
+  }
+  if (features.references) {
+    return {
+      compatible: false,
+      reason: "references",
+      message: "检测到引用式链接定义，请使用源码或分栏模式以保持定义和复用关系原样",
     };
   }
 

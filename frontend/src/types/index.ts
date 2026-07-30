@@ -128,6 +128,10 @@ export interface EditorAdapter {
   getCursorPosition: () => CursorPosition;
   getSelectionStats: () => SelectionStats;
   onCursorChange: (handler: () => void) => void;
+  /** Subscribe to normalized vertical scroll progress (0..1). */
+  onScroll?: (handler: (progress: number) => void) => void;
+  getScrollProgress?: () => number;
+  setScrollProgress?: (progress: number) => void;
   forceRefresh: () => void;
   /**
    * Open an editor-local find/search UI. Each adapter implements this with

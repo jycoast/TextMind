@@ -204,6 +204,16 @@ export function createMonacoAdapter(
 
   const selectionsChangeHandlers: Array<(count: number) => void> = [];
   const cursorChangeHandlers: Array<() => void> = [];
+  const scrollHandlers: Array<(progress: number) => void> = [];
+  function getScrollProgress(): number {
+    const max = Math.max(0, editor.getScrollHeight() - editor.getLayoutInfo().height);
+    return max > 0 ? Math.min(1, Math.max(0, editor.getScrollTop() / max)) : 0;
+  }
+  editor.onDidScrollChange((event) => {
+    if (!event.scrollTopChanged) return;
+    const progress = getScrollProgress();
+    scrollHandlers.forEach((handler) => handler(progress));
+  });
   editor.onDidChangeCursorSelection(() => {
     const selections = editor.getSelections();
     const count = selections ? selections.length : 0;
@@ -377,6 +387,23 @@ export function createMonacoAdapter(
 
     onCursorChange: (handler) => {
       cursorChangeHandlers.push(handler);
+    },
+
+    onScroll: (handler) => {
+      scrollHandlers.push(handler);
+    },
+
+    getScrollProgress,
+
+    setScrollProgress: (progress: number) => {
+      const max = Math.max(
+        0,
+        editor.getScrollHeight() - editor.getLayoutInfo().height,
+      );
+      editor.setScrollTop(
+        Math.min(1, Math.max(0, progress || 0)) * max,
+        monaco.editor.ScrollType.Immediate,
+      );
     },
 
     setColumnMode: (enabled) => applyColumnMode(enabled),

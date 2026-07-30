@@ -22,6 +22,7 @@ describe("Markdown document policy", () => {
     ["frontmatter", "---\ntitle: Demo\n---\n# Demo"],
     ["html", "# Demo\n\n<details>content</details>"],
     ["footnotes", "A note[^one].\n\n[^one]: Detail"],
+    ["references", "[Text][docs]\n\n[docs]: ./docs.md"],
   ])("protects unsupported %s syntax", (reason, source) => {
     expect(analyzeWysiwygCompatibility(tab("demo.md", source)).reason).toBe(reason);
   });
@@ -34,6 +35,24 @@ describe("Markdown document policy", () => {
   it("protects standalone footnote definitions", () => {
     const document = tab("demo.md", "[^unused]: Keep this definition");
     expect(analyzeWysiwygCompatibility(document).reason).toBe("footnotes");
+  });
+
+  it.each([
+    ["UTF-8 BOM YAML", "\uFEFF---\ntitle: Demo\n---\n# Demo"],
+    ["TOML", "+++\ntitle = 'Demo'\n+++\n# Demo"],
+  ])("protects %s front matter", (_name, source) => {
+    expect(analyzeWysiwygCompatibility(tab("demo.md", source)).reason).toBe("frontmatter");
+  });
+
+  it("reports a source-safe alternative for protected syntax", () => {
+    const result = analyzeWysiwygCompatibility(tab("demo.md", "<aside>Note</aside>"));
+    expect(result.compatible).toBe(false);
+    expect(result.message).toContain("源码或分栏模式");
+  });
+
+  it("protects unused reference definitions from WYSIWYG normalization", () => {
+    const document = tab("demo.md", "[unused]: ./keep-this.md");
+    expect(analyzeWysiwygCompatibility(document).reason).toBe("references");
   });
 
   it("allows supported CommonMark and GFM documents", () => {

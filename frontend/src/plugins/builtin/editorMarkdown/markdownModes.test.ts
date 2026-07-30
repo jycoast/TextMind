@@ -41,6 +41,7 @@ describe("Markdown editor mode cycle", () => {
     ["page.md", "---\ntitle: Demo\n---\n# Demo"],
     ["page.md", "<details>content</details>"],
     ["page.md", "Note[^one].\n\n[^one]: Detail"],
+    ["page.md", "[Text][docs]\n\n[docs]: ./docs.md"],
   ])("keeps protected %s content out of WYSIWYG", (title, source) => {
     const document = tab(source, title);
     expect(getNextMode(document)).toBe("split");
