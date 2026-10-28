@@ -105,6 +105,56 @@ function buildView(
 
   pre.appendChild(badge);
 
+  // "Copy code" button, anchored to the top-right corner of the <pre>. It is
+  // kept out of the editable content (like the badge) so it never becomes part
+  // of the document — swallow its events and let ignoreMutation/stopEvent
+  // treat it as bookkeeping.
+  const copyBtn = document.createElement("button");
+  copyBtn.type = "button";
+  copyBtn.className = "tm-md-codeblock-copy";
+  copyBtn.textContent = "复制";
+  copyBtn.setAttribute("contenteditable", "false");
+  pre.appendChild(copyBtn);
+
+  let copyTimer: ReturnType<typeof setTimeout> | null = null;
+  function setCopiedFeedback(): void {
+    if (copyTimer) clearTimeout(copyTimer);
+    copyBtn.textContent = "已复制";
+    copyBtn.classList.add("is-copied");
+    copyTimer = setTimeout(() => {
+      copyBtn.textContent = "复制";
+      copyBtn.classList.remove("is-copied");
+      copyTimer = null;
+    }, 1400);
+  }
+  async function copyCode(): Promise<void> {
+    const source = node.textContent;
+    try {
+      await navigator.clipboard.writeText(source);
+      setCopiedFeedback();
+    } catch {
+      // Fallback for older WebView2 where the async clipboard API is unavailable.
+      const textarea = document.createElement("textarea");
+      textarea.value = source;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand("copy");
+      } catch {
+        /* ignore */
+      }
+      document.body.removeChild(textarea);
+      setCopiedFeedback();
+    }
+  }
+  copyBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    void copyCode();
+  });
+
   let mermaidRevision = 0;
   let mermaidTimer: ReturnType<typeof setTimeout> | null = null;
   function updateMermaidPreview(): void {
@@ -151,6 +201,7 @@ function buildView(
   badge.addEventListener("click", swallow);
   badge.addEventListener("keyup", swallow);
   badge.addEventListener("keypress", swallow);
+  copyBtn.addEventListener("mousedown", swallow);
 
   function commitLanguage(value: string) {
     const pos = getPos();
@@ -211,27 +262,37 @@ function buildView(
       return true;
     },
     ignoreMutation(mutation) {
-      // Any DOM change inside the badge is bookkeeping (input value, focus
-      // ring, etc.) and never represents a document edit.
+      // Any DOM change inside the badge or the copy button is bookkeeping
+      // (input value, focus ring, "已复制" feedback) and never represents a
+      // document edit.
       const target = mutation.target as Node;
-      return badge.contains(target) || mermaidPreview.contains(target);
+      return (
+        badge.contains(target) ||
+        mermaidPreview.contains(target) ||
+        copyBtn.contains(target)
+      );
     },
     stopEvent(event) {
-      // Pointer / keyboard events that originate inside the badge belong to
-      // the form control, not the ProseMirror view.
+      // Pointer / keyboard events that originate inside the badge or the copy
+      // button belong to their form controls, not the ProseMirror view.
       const t = event.target as Node | null;
       return Boolean(
-        t && (badge.contains(t) || mermaidPreview.contains(t)),
+        t &&
+          (badge.contains(t) ||
+            mermaidPreview.contains(t) ||
+            copyBtn.contains(t)),
       );
     },
     destroy() {
       mermaidRevision += 1;
       if (mermaidTimer) clearTimeout(mermaidTimer);
+      if (copyTimer) clearTimeout(copyTimer);
       removeThemeListener();
       badge.removeEventListener("mousedown", swallow);
       badge.removeEventListener("click", swallow);
       badge.removeEventListener("keyup", swallow);
       badge.removeEventListener("keypress", swallow);
+      copyBtn.removeEventListener("mousedown", swallow);
     },
   };
 }

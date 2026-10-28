@@ -21,6 +21,133 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
+// --- Resized-image <img> HTML support --------------------------------------
+// The WYSIWYG editor persists a resized image as inline raw HTML carrying the
+// size in its style, Typora-style:
+//
+//   <img src="a.png" alt="alt" style="width:200px" />
+//
+// This renderer is built with `html:false`, so that tag arrives as a literal
+// `text` token and would otherwise be shown escaped. These helpers mirror the
+// attr/width extraction in plugins/builtin/editorMarkdown/imageResize.ts so the
+// preview/export pipeline can turn it back into a real <img> with a width.
+
+function attrValue(tag: string, name: string): string {
+  const match = tag.match(new RegExp(`${name}\\s*=\\s*["']([^"']*)["']`, "i"));
+  return match ? match[1] : "";
+}
+
+function styleWidth(style: string): string | null {
+  const match = style.match(/width\s*:\s*([0-9.]+)\s*px/i);
+  return match ? match[1] : null;
+}
+
+function unescapeAttr(value: string): string {
+  return value
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, "<")
+    .replace(/&amp;/g, "&");
+}
+
+type InlinePart =
+  | { type: "text"; content: string }
+  | { type: "img"; src: string; alt: string; title: string; width: string };
+
+/** Split a text token's content on resized `<img>` tags into parts. */
+function splitResizedImageText(text: string): InlinePart[] {
+  const out: InlinePart[] = [];
+  // A tag whose attributes may contain `>` inside quoted values.
+  const re = /<img\b(?:[^>"']+|"[^"]*"|'[^']*')*>/gi;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  let found = false;
+  while ((match = re.exec(text))) {
+    const tag = match[0];
+    const width = styleWidth(attrValue(tag, "style") || "");
+    if (!width) continue;
+    found = true;
+    if (match.index > last) {
+      out.push({ type: "text", content: text.slice(last, match.index) });
+    }
+    out.push({
+      type: "img",
+      src: unescapeAttr(attrValue(tag, "src")),
+      alt: unescapeAttr(attrValue(tag, "alt")),
+      title: unescapeAttr(attrValue(tag, "title")),
+      width,
+    });
+    last = re.lastIndex;
+  }
+  if (!found) return [{ type: "text", content: text }];
+  if (last < text.length) out.push({ type: "text", content: text.slice(last) });
+  return out;
+}
+
+/** Wrap block tables in a horizontally scrollable container so wide tables
+ *  do not blow out a narrow preview / export pane. */
+function configureTableScroll(md: MarkdownIt): void {
+  md.core.ruler.after("block", "textmind_table_scroll", (state) => {
+    for (let i = 0; i < state.tokens.length; i += 1) {
+      if (state.tokens[i].type !== "table_open") continue;
+      const open = new Token("tm_table_scroll_open", "", 0);
+      state.tokens.splice(i, 0, open);
+      let depth = 1;
+      for (let j = i + 1; j < state.tokens.length; j += 1) {
+        if (state.tokens[j].type === "table_open") depth += 1;
+        else if (state.tokens[j].type === "table_close") {
+          depth -= 1;
+          if (depth === 0) {
+            const close = new Token("tm_table_scroll_close", "", 0);
+            state.tokens.splice(j + 1, 0, close);
+            break;
+          }
+        }
+      }
+      i += 1;
+    }
+  });
+  md.renderer.rules.tm_table_scroll_open = () => '<div class="tm-table-scroll">';
+  md.renderer.rules.tm_table_scroll_close = () => "</div>";
+}
+
+/** Rebuild resized `<img style="width:Npx">` raw-HTML into real image tokens. */
+function configureResizedImages(md: MarkdownIt): void {
+  md.core.ruler.after("inline", "textmind_resized_images", (state) => {
+    for (const token of state.tokens) {
+      if (token.type !== "inline" || !token.children) continue;
+      const next: Token[] = [];
+      for (const child of token.children) {
+        if (child.type !== "text") {
+          next.push(child);
+          continue;
+        }
+        const parts = splitResizedImageText(child.content);
+        const changed = parts.length > 1 || parts[0]?.type === "img";
+        if (!changed) {
+          next.push(child);
+          continue;
+        }
+        for (const part of parts) {
+          if (part.type === "text") {
+            const textToken = new Token("text", "", 0);
+            textToken.content = part.content;
+            next.push(textToken);
+          } else {
+            const img = new Token("image", "img", 0);
+            img.attrSet("src", part.src);
+            img.attrSet("alt", part.alt);
+            if (part.title) img.attrSet("title", part.title);
+            img.content = part.alt;
+            img.attrSet("style", `width:${part.width}px`);
+            next.push(img);
+          }
+        }
+      }
+      token.children = next;
+    }
+  });
+}
+
 function configureSafeRenderer(md: MarkdownIt): void {
   const fallback = md.renderer.renderToken.bind(md.renderer);
   const originalLinkOpen = md.renderer.rules.link_open;
@@ -35,13 +162,17 @@ function configureSafeRenderer(md: MarkdownIt): void {
       : fallback(tokens, index, options);
   };
 
-  const originalImage = md.renderer.rules.image;
-  md.renderer.rules.image = (tokens, index, options, env, self) => {
-    tokens[index].attrSet("loading", "lazy");
-    tokens[index].attrSet("referrerpolicy", "no-referrer");
-    return originalImage
-      ? originalImage(tokens, index, options, env, self)
-      : fallback(tokens, index, options);
+  md.renderer.rules.image = (tokens, index) => {
+    const token = tokens[index];
+    const style = token.attrGet("style");
+    const src = escapeHtml(token.attrGet("src") || "");
+    const alt = escapeHtml(token.content || "");
+    const title = escapeHtml(token.attrGet("title") || "");
+    let tag = `<img src="${src}" alt="${alt}"`;
+    if (style) tag += ` style="${escapeHtml(style)}"`;
+    if (title) tag += ` title="${title}"`;
+    tag += ` loading="lazy" referrerpolicy="no-referrer">`;
+    return tag;
   };
 }
 
@@ -224,6 +355,8 @@ function createMarkdown(
   configureTomlFrontMatter(md);
   configureTaskLists(md);
   configureHeadingAnchors(md);
+  configureResizedImages(md);
+  configureTableScroll(md);
   if (sourceLines) configureSourceLineAnchors(md);
   if (enableMermaid) configureMermaidRenderer(md);
   configureSafeRenderer(md);

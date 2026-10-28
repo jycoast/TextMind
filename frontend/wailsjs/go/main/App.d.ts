@@ -116,6 +116,8 @@ export function SetVersion(arg1:string):Promise<void>;
 
 export function StartChatStream(arg1:main.StartChatRequest):Promise<main.StartChatResult>;
 
+export function TakeExternalPaths():Promise<Array<string>>;
+
 export function TestAIConnection(arg1:main.AIConfigDTO):Promise<main.SimpleResult>;
 
 export function ToInListSelected(arg1:string):Promise<main.ToolResult>;

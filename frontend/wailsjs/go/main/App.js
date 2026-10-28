@@ -226,6 +226,10 @@ export function StartChatStream(arg1) {
   return window['go']['main']['App']['StartChatStream'](arg1);
 }
 
+export function TakeExternalPaths() {
+  return window['go']['main']['App']['TakeExternalPaths']();
+}
+
 export function TestAIConnection(arg1) {
   return window['go']['main']['App']['TestAIConnection'](arg1);
 }

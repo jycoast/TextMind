@@ -374,6 +374,16 @@ body.is-resizing {
   background: var(--panel-input);
 }
 .tm-markdown-preview pre code { padding: 0; border: 0; background: transparent; }
+.tm-markdown-preview .tm-table-scroll,
+.markdown-body .tm-table-scroll {
+  margin: 0.8em 0;
+  overflow-x: auto;
+}
+.tm-markdown-preview .tm-table-scroll table,
+.markdown-body .tm-table-scroll table {
+  width: 100%;
+  margin: 0;
+}
 .tm-markdown-preview table { border-collapse: collapse; margin: 0.8em 0; }
 .tm-markdown-preview th,
 .tm-markdown-preview td { padding: 6px 10px; border: 1px solid var(--hairline); }
@@ -386,3 +396,174 @@ body.is-resizing {
   border: 1px dashed #e06c75;
 }
 .tm-markdown-preview hr { border: 0; border-top: 1px solid var(--hairline); }
+
+/* "/" command menu (Milkdown SlashProvider) */
+.tm-md-slash {
+  position: absolute;
+  min-width: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32);
+  padding: 4px;
+  z-index: 1200;
+}
+.tm-md-slash__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.tm-md-slash__item:hover,
+.tm-md-slash__item--active {
+  background: var(--hover-bg);
+}
+.tm-md-slash__hint {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+}
+
+/* Find & replace floating bar (Milkdown WYSIWYG) */
+.tm-milkdown-host {
+  position: relative;
+}
+.tm-findbar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--panel-elevated);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+.tm-findbar__input {
+  width: 150px;
+  padding: 4px 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  background: var(--panel-input);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+.tm-findbar__input:focus {
+  border-color: var(--accent);
+}
+.tm-findbar__count {
+  min-width: 46px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.tm-findbar__btn {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.tm-findbar__btn:hover {
+  background: var(--hover-bg);
+}
+.tm-findbar__btn--wide {
+  white-space: nowrap;
+}
+.tm-find-match {
+  background: color-mix(in srgb, #f0c948 30%, transparent);
+  border-radius: 2px;
+}
+.tm-find-current {
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+/* Focus / typewriter modes (classes applied to the Milkdown .ProseMirror root) */
+.ProseMirror.tm-focus > * {
+  opacity: 0.28;
+  transition: opacity 0.16s ease;
+}
+.ProseMirror.tm-focus > .tm-focus-active {
+  opacity: 1;
+}
+.ProseMirror.tm-typewriter .ProseMirror-selectednode {
+  outline-color: var(--accent);
+}
+
+/* Image lightbox */
+.tm-markdown-preview img { cursor: zoom-in; }
+.tm-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background: rgba(8, 10, 14, 0.86);
+  cursor: zoom-out;
+}
+.tm-lightbox__image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+  cursor: default;
+}
+.tm-lightbox__close {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.tm-lightbox__close:hover { background: rgba(255, 255, 255, 0.18); }
+
+/* Reading width: center the preview content column at the chosen max-width. */
+.tm-md-split__preview {
+  transition: max-width 0.15s ease;
+}
+body[data-reading-width="narrow"] .tm-md-split__preview {
+  max-width: 760px;
+  margin: 0 auto;
+}
+body[data-reading-width="standard"] .tm-md-split__preview {
+  max-width: 980px;
+  margin: 0 auto;
+}
+body[data-reading-width="wide"] .tm-md-split__preview {
+  max-width: 100%;
+  margin: 0;
+}

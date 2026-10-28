@@ -18,6 +18,7 @@ const { columnMode, current } = storeToRefs(tabsStore);
 
 let currentAdapter: EditorAdapter | null = null;
 let currentEditorRecId: string | null = null;
+let currentAdapterTabId: string | null = null;
 
 function attachAdapter(adapter: EditorAdapter) {
   adapter.onChange(() => {
@@ -55,6 +56,7 @@ function rebuildAdapter(reason: string) {
       currentAdapter = null;
       tabsStore.setAdapter(null);
       currentEditorRecId = null;
+      currentAdapterTabId = null;
     }
     return;
   }
@@ -65,18 +67,20 @@ function rebuildAdapter(reason: string) {
   }
   if (currentAdapter && currentEditorRecId === rec.id) {
     // Same editor; tab change is handled by setAdapter -> renderCurrentIntoEditor.
+    currentAdapterTabId = tab.id;
     return;
   }
   if (currentAdapter) {
-    // Flush the outgoing adapter's content + view state into the tab so the
-    // incoming adapter can hydrate from the canonical source. Without this,
-    // unsaved edits made in (e.g.) Milkdown would be lost the moment the
-    // user toggled to Monaco source mode.
-    try {
-      tabsStore.persistCurrentText();
-      tabsStore.persistCurrentViewState();
-    } catch (err) {
-      console.warn("[editor] persist before swap failed:", err);
+    // On a tab change the store already saved the outgoing tab before changing
+    // selection. Persist here only for an editor-mode change on the same tab;
+    // otherwise the old adapter would overwrite the newly selected tab.
+    if (currentAdapterTabId === tab.id) {
+      try {
+        tabsStore.persistCurrentText();
+        tabsStore.persistCurrentViewState();
+      } catch (err) {
+        console.warn("[editor] persist before swap failed:", err);
+      }
     }
     currentAdapter.dispose();
     currentAdapter = null;
@@ -87,6 +91,7 @@ function rebuildAdapter(reason: string) {
   });
   currentAdapter = next;
   currentEditorRecId = rec.id;
+  currentAdapterTabId = tab.id;
   attachAdapter(next);
 }
 
@@ -117,6 +122,7 @@ onBeforeUnmount(() => {
   unsubRegistry.dispose();
   currentAdapter?.dispose();
   currentAdapter = null;
+  currentAdapterTabId = null;
   tabsStore.setAdapter(null);
 });
 

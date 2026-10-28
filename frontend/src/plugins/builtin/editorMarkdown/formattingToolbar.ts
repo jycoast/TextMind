@@ -20,6 +20,7 @@ import {
   Quote,
   Redo2,
   Rows3,
+  Sigma,
   Strikethrough,
   Table2,
   Trash2,
@@ -52,8 +53,10 @@ export type FormattingAction =
   | "table-delete-column"
   | "table-delete"
   | "table-align"
+  | "math"
   | "hr"
-  | "export-pdf";
+  | "export-pdf"
+  | "export-html";
 
 export interface ToolbarHandle {
   element: HTMLDivElement;
@@ -84,6 +87,7 @@ const markButtons: ButtonDefinition[] = [
   { action: "emphasis", title: "斜体 (Ctrl+I)", icon: Italic },
   { action: "strike", title: "删除线", icon: Strikethrough },
   { action: "inline-code", title: "行内代码", icon: Code2 },
+  { action: "math", title: "插入行内公式 ($...$)", icon: Sigma },
 ];
 
 const blockButtons: ButtonDefinition[] = [
@@ -476,6 +480,7 @@ export function createFormattingToolbar(
   addButton({ action: "hr", title: "插入分隔线", icon: Minus });
   element.appendChild(separator());
   addButton({ action: "export-pdf", title: "导出为 PDF", icon: Download });
+  addButton({ action: "export-html", title: "导出为 HTML", icon: Download });
 
   const onToolbarKeydown = (event: KeyboardEvent) => {
     if (event.key === "Escape" && openPanel) {

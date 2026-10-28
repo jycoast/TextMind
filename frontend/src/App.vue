@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, onBeforeUnmount } from "vue";
+import { EventsOn } from "@wails/runtime/runtime";
 import { storeToRefs } from "pinia";
 import TopBar from "@/components/TopBar.vue";
 import TabBar from "@/components/TabBar.vue";
@@ -64,6 +65,21 @@ async function openLaunchFileIfAny() {
   await commandRegistry.execute("file.openByPath", path);
 }
 
+// Files forwarded by a second TextMind instance (e.g. double-clicking a file
+// while the app is open) arrive here and open as new tabs in this window.
+let offOpenFiles: (() => void) | undefined;
+async function openPaths(paths: unknown) {
+  if (!Array.isArray(paths)) return;
+  for (const p of paths) {
+    const path = String(p || "").trim();
+    if (!path) continue;
+    await commandRegistry.execute("file.openByPath", path);
+  }
+}
+function installExternalOpenListener() {
+  offOpenFiles = EventsOn("open-files", (paths: unknown) => openPaths(paths));
+}
+
 onMounted(async () => {
   await bootstrapPlugins();
   await loadSessionIntoStores();
@@ -71,9 +87,23 @@ onMounted(async () => {
   if (workspace.root) {
     await workspace.setRoot(workspace.root);
   }
+  // Register the live listener first, then drain any files that were
+  // forwarded while the app was still booting (the backend buffered them
+  // until now). Ordering matters: only after this does the backend start
+  // emitting live "open-files" events, which the listener is ready for.
+  installExternalOpenListener();
+  const pending = await backend.takeExternalPaths();
+  await openPaths(pending);
   await openLaunchFileIfAny();
   installSessionAutoSave();
   installFileWatcher();
+});
+
+onBeforeUnmount(() => {
+  if (offOpenFiles) {
+    offOpenFiles();
+    offOpenFiles = undefined;
+  }
 });
 </script>
 

@@ -15,13 +15,34 @@ const MIN_WIDTH = 180;
 const MAX_WIDTH = 520;
 const DEFAULT_WIDTH = 260;
 
-function loadWidth(): number {
+function clampWidth(n: number): number {
+  return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, n));
+}
+
+/**
+ * Per-panel widths, keyed by panel id. Each panel remembers its own width so
+ * switching panels doesn't reset the layout. Missing ids fall back to
+ * DEFAULT_WIDTH. Migrates the pre-multi-panel single width (a bare number)
+ * into the "files" slot so existing users keep their sizing.
+ */
+function loadWidths(): Record<string, number> {
   try {
-    const n = Number(localStorage.getItem(WIDTH_KEY));
-    if (!Number.isFinite(n) || n <= 0) return DEFAULT_WIDTH;
-    return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, n));
+    const raw = localStorage.getItem(WIDTH_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === "number" && Number.isFinite(parsed)) {
+      return { files: clampWidth(parsed) };
+    }
+    if (parsed && typeof parsed === "object") {
+      const out: Record<string, number> = {};
+      for (const [id, v] of Object.entries(parsed)) {
+        if (typeof v === "number" && Number.isFinite(v)) out[id] = clampWidth(v);
+      }
+      return out;
+    }
+    return {};
   } catch {
-    return DEFAULT_WIDTH;
+    return {};
   }
 }
 
@@ -36,7 +57,7 @@ function loadActive(): string | null {
 export const useSidebarStore = defineStore("sidebar", () => {
   const panels = ref<SidebarPanelDef[]>([]);
   const activePanel = ref<string | null>(loadActive());
-  const width = ref<number>(loadWidth());
+  const widths = ref<Record<string, number>>(loadWidths());
   const resizing = ref(false);
 
   const sortedPanels = computed(() =>
@@ -49,6 +70,11 @@ export const useSidebarStore = defineStore("sidebar", () => {
 
   const isCollapsed = computed(() => activePanel.value === null);
 
+  /** Width of the active panel; falls back to DEFAULT_WIDTH when none set. */
+  const width = computed(() =>
+    activePanel.value ? widths.value[activePanel.value] ?? DEFAULT_WIDTH : DEFAULT_WIDTH,
+  );
+
   watch(activePanel, (v) => {
     try {
       if (v) localStorage.setItem(ACTIVE_KEY, v);
@@ -56,11 +82,11 @@ export const useSidebarStore = defineStore("sidebar", () => {
     } catch { /* ignore */ }
   });
 
-  watch(width, (v) => {
+  watch(widths, (v) => {
     try {
-      localStorage.setItem(WIDTH_KEY, String(v));
+      localStorage.setItem(WIDTH_KEY, JSON.stringify(v));
     } catch { /* ignore */ }
-  });
+  }, { deep: true });
 
   function register(def: SidebarPanelDef) {
     if (panels.value.some((p) => p.id === def.id)) return;
@@ -84,7 +110,9 @@ export const useSidebarStore = defineStore("sidebar", () => {
   }
 
   function setWidth(next: number) {
-    width.value = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, next));
+    const id = activePanel.value;
+    if (!id) return;
+    widths.value = { ...widths.value, [id]: clampWidth(next) };
   }
 
   function setResizing(v: boolean) {

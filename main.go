@@ -29,9 +29,32 @@ var frontendAssets embed.FS
 // compare the running build against GitHub releases.
 var Version = "dev"
 
+// appWindowTitle is the window title, shared by the Wails window options and
+// the single-instance raiseWindow (which locates the window by title).
+const appWindowTitle = "TextMind"
+
 func main() {
 	logger := log.New(persist.NewLogWriter(), "[TextMind] ", log.Ldate|log.Ltime|log.Lshortfile)
-	launchPath := detectLaunchPath(os.Args[1:])
+	launchPaths := detectLaunchPaths(os.Args[1:])
+	launchPath := ""
+	if len(launchPaths) > 0 {
+		launchPath = launchPaths[0]
+	}
+
+	// Enforce a single instance: if another TextMind is already running, hand
+	// it any files we were launched with and exit without creating a window.
+	// The running instance opens those files as new tabs.
+	single, primary := Acquire()
+	if !primary {
+		// Best-effort forward of launch paths to the running instance. We exit 0
+		// regardless of the outcome so this does not look like a failure to
+		// anything that inspects the process's exit code (including Wails'
+		// binding-generation step, which runs this same main in a subprocess).
+		if !Forward(launchPaths) {
+			logger.Printf("could not forward launch paths to running instance: %v", launchPaths)
+		}
+		os.Exit(0)
+	}
 
 	assetFS, err := fs.Sub(frontendAssets, "frontend/dist")
 	if err != nil {
@@ -40,6 +63,8 @@ func main() {
 
 	app := NewApp(logger, launchPath)
 	app.SetVersion(Version)
+	app.singleInstance = single
+	single.Serve(func(paths []string) { app.handleExternalOpen(paths) })
 
 	// pluginhost is the seed for the Go-side plugin architecture. Built-in
 	// modules currently live alongside the App receiver (so existing Wails
@@ -53,7 +78,7 @@ func main() {
 	registerBuiltinModules(host, app)
 
 	err = wails.Run(&options.App{
-		Title:     "TextMind",
+		Title:     appWindowTitle,
 		Width:     1000,
 		Height:    760,
 		MinWidth:  820,
@@ -77,6 +102,7 @@ func main() {
 		OnShutdown: func(ctx context.Context) {
 			host.Shutdown(ctx)
 			app.shutdown(ctx)
+			single.Release()
 		},
 		Bind: []interface{}{
 			app,
@@ -87,7 +113,12 @@ func main() {
 	}
 }
 
-func detectLaunchPath(args []string) string {
+// detectLaunchPaths collects every file argument passed on the command line
+// (e.g. from double-clicking one or more files) that names an existing regular
+// file. Directories and flag-like args are ignored. The first path is used as
+// the initial launch path; all of them are forwarded to a running instance.
+func detectLaunchPaths(args []string) []string {
+	var paths []string
 	for _, a := range args {
 		p := a
 		if p == "" || p[0] == '-' {
@@ -97,8 +128,7 @@ func detectLaunchPath(args []string) string {
 		if err != nil || info.IsDir() {
 			continue
 		}
-		return p
+		paths = append(paths, p)
 	}
-	return ""
+	return paths
 }
-

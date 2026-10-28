@@ -238,6 +238,25 @@ export const themedStyles = /* css */ `
   caret-color: var(--accent);
 }
 
+/* Read-only YAML front matter header shown above the editable body. The block
+   is kept out of the Milkdown doc (remark would mangle it) and rendered here as
+   an inert <pre>; it round-trips verbatim on save. See markdownFrontMatter.ts. */
+.tm-milkdown-host .tm-md-frontmatter {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  color: var(--muted);
+  background: var(--panel-input, var(--panel));
+  border: 1px dashed var(--hairline);
+  border-radius: 4px;
+  font-family: Consolas, "Courier New", ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: none;
+  cursor: default;
+}
+
 .tm-milkdown-host .ProseMirror p,
 .tm-milkdown-host .ProseMirror li {
   margin: 0.5em 0;
@@ -330,6 +349,40 @@ export const themedStyles = /* css */ `
   opacity: 0.6;
 }
 .tm-milkdown-host .ProseMirror pre .tm-md-codeblock-lang__input:focus {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* Copy-code button in the top-right corner; mirrors the badge's quiet-by-
+   default / brighten-on-hover behavior. */
+.tm-milkdown-host .ProseMirror pre .tm-md-codeblock-copy {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  height: 20px;
+  padding: 0 8px;
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--muted);
+  background: var(--bg, var(--panel));
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out;
+  user-select: none;
+}
+.tm-milkdown-host .ProseMirror pre:hover .tm-md-codeblock-copy,
+.tm-milkdown-host .ProseMirror pre .tm-md-codeblock-copy:focus-visible,
+.tm-milkdown-host .ProseMirror pre .tm-md-codeblock-copy.is-copied {
+  opacity: 1;
+}
+.tm-milkdown-host .ProseMirror pre .tm-md-codeblock-copy:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.tm-milkdown-host .ProseMirror pre .tm-md-codeblock-copy.is-copied {
   color: var(--text);
   border-color: var(--accent);
 }
@@ -494,6 +547,43 @@ export const themedStyles = /* css */ `
   border: 1px solid var(--hairline);
 }
 
+/* Image node wrapper — the resize handle lives in the corner. The live
+   width is applied via inline style on the <img> and is intentionally not
+   persisted (Markdown has no image-width syntax; see localImageView.ts). */
+.tm-milkdown-host .ProseMirror .tm-md-image-node {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+}
+.tm-milkdown-host .ProseMirror .tm-md-image-node img {
+  display: block;
+  max-width: 100%;
+}
+.tm-milkdown-host .ProseMirror .tm-md-image-node__handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  cursor: nwse-resize;
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out;
+  user-select: none;
+}
+.tm-milkdown-host .ProseMirror .tm-md-image-node:hover .tm-md-image-node__handle,
+.tm-milkdown-host .ProseMirror .tm-md-image-node__handle.is-dragging {
+  opacity: 1;
+}
+.tm-milkdown-host .ProseMirror .tm-md-image-node__handle.is-dragging {
+  width: 18px;
+  height: 18px;
+}
+
 /* Math nodes (KaTeX rendered via @milkdown/plugin-math).
    Both inline and block formulas are atom nodes, so we draw a thin
    selection ring when the node is selected to make it clear it's
@@ -540,6 +630,33 @@ export const themedStyles = /* css */ `
   accent-color: var(--accent);
 }
 
+/* GFM footnotes (Milkdown preset-gfm ships the reference + definition nodes).
+   The in-text reference is a small accent superscript; definitions are grouped
+   as a muted definition list at the foot of the document. */
+.tm-milkdown-host .ProseMirror sup[data-type="footnote_reference"] {
+  color: var(--accent);
+  font-size: 0.75em;
+  vertical-align: super;
+  margin: 0 1px;
+  cursor: pointer;
+}
+.tm-milkdown-host .ProseMirror dl[data-type="footnote_definition"] {
+  margin: 1.2em 0 0;
+  padding-top: 0.6em;
+  border-top: 1px solid var(--hairline);
+  color: var(--muted);
+}
+.tm-milkdown-host .ProseMirror dl[data-type="footnote_definition"] dt {
+  display: inline-block;
+  min-width: 1.4em;
+  color: var(--accent);
+  font-size: 0.85em;
+}
+.tm-milkdown-host .ProseMirror dl[data-type="footnote_definition"] dd {
+  display: inline;
+  margin: 0;
+}
+
 /* Selection — mirror Monaco-ish accent tint. */
 .tm-milkdown-host .ProseMirror ::selection {
   background: color-mix(in srgb, var(--accent) 35%, transparent);
@@ -562,8 +679,9 @@ export const themedStyles = /* css */ `
   margin-right: 0;
   z-index: 5;
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
   width: fit-content;
   background: var(--panel, var(--bg));
   border: 1px solid var(--hairline);
@@ -572,7 +690,13 @@ export const themedStyles = /* css */ `
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   font-size: 12px;
 }
-.tm-milkdown-find__input {
+.tm-milkdown-find__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tm-milkdown-find__input,
+.tm-milkdown-find__replace {
   background: var(--panel-input, var(--bg));
   color: var(--text);
   border: 1px solid var(--hairline);
@@ -582,8 +706,12 @@ export const themedStyles = /* css */ `
   font-size: 12px;
   outline: none;
 }
-.tm-milkdown-find__input:focus {
+.tm-milkdown-find__input:focus,
+.tm-milkdown-find__replace:focus {
   border-color: var(--accent);
+}
+.tm-milkdown-find__replace {
+  width: 180px;
 }
 .tm-milkdown-find__count {
   color: var(--muted);

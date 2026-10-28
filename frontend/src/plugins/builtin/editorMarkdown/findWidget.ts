@@ -71,11 +71,18 @@ export function createFindWidget(
   bar.className = "tm-milkdown-find";
   bar.style.display = "none";
   bar.innerHTML = `
-    <input type="text" class="tm-milkdown-find__input" placeholder="查找..." />
-    <span class="tm-milkdown-find__count">0/0</span>
-    <button type="button" class="tm-milkdown-find__btn" data-action="prev" title="上一个 (Shift+Enter)">↑</button>
-    <button type="button" class="tm-milkdown-find__btn" data-action="next" title="下一个 (Enter / F3)">↓</button>
-    <button type="button" class="tm-milkdown-find__btn" data-action="close" title="关闭 (Esc)">×</button>
+    <div class="tm-milkdown-find__row">
+      <input type="text" class="tm-milkdown-find__input" placeholder="查找..." />
+      <span class="tm-milkdown-find__count">0/0</span>
+      <button type="button" class="tm-milkdown-find__btn" data-action="prev" title="上一个 (Shift+Enter)">↑</button>
+      <button type="button" class="tm-milkdown-find__btn" data-action="next" title="下一个 (Enter / F3)">↓</button>
+      <button type="button" class="tm-milkdown-find__btn" data-action="close" title="关闭 (Esc)">×</button>
+    </div>
+    <div class="tm-milkdown-find__row">
+      <input type="text" class="tm-milkdown-find__replace" placeholder="替换为..." />
+      <button type="button" class="tm-milkdown-find__btn" data-action="replace" title="替换当前匹配">替换</button>
+      <button type="button" class="tm-milkdown-find__btn" data-action="replace-all" title="替换全部匹配">全部替换</button>
+    </div>
   `;
   host.style.position = host.style.position || "relative";
   // Prepend so the sticky bar is visible from scrollTop=0; if we appended it
@@ -85,6 +92,8 @@ export function createFindWidget(
 
   const input = bar.querySelector<HTMLInputElement>(".tm-milkdown-find__input")!;
   const count = bar.querySelector<HTMLSpanElement>(".tm-milkdown-find__count")!;
+  const replaceInput =
+    bar.querySelector<HTMLInputElement>(".tm-milkdown-find__replace")!;
 
   function collectMatches(query: string): Match[] {
     const view = getView();
@@ -220,10 +229,40 @@ export function createFindWidget(
     updateStatus();
   }
 
+  // Replace the current match with the replace value, then re-run the search so
+  // highlights and the count stay in sync with the edited doc.
+  function replaceCurrent(): void {
+    const view = getView();
+    if (!view || matches.length === 0) return;
+    const m = matches[index];
+    view.dispatch(view.state.tr.insertText(replaceInput.value, m.from, m.to));
+    refresh(input.value);
+  }
+
+  // Replace every match in one transaction. Iterate last-to-first so earlier
+  // matches' positions stay valid (later edits don't shift earlier offsets).
+  function replaceAll(): void {
+    const view = getView();
+    if (!view || matches.length === 0) return;
+    const value = replaceInput.value;
+    let tr = view.state.tr;
+    for (let i = matches.length - 1; i >= 0; i -= 1) {
+      const m = matches[i];
+      tr = tr.insertText(value, m.from, m.to);
+    }
+    view.dispatch(tr);
+    refresh(input.value);
+  }
+
   function handleKey(ev: KeyboardEvent) {
     if (ev.key === "Escape") {
       ev.preventDefault();
       handle.close();
+      return;
+    }
+    if (ev.key === "Enter" && ev.target === replaceInput) {
+      ev.preventDefault();
+      replaceCurrent();
       return;
     }
     if (ev.key === "Enter") {
@@ -261,6 +300,8 @@ export function createFindWidget(
     const action = btn.getAttribute("data-action");
     if (action === "prev") jumpTo(index - 1);
     else if (action === "next") jumpTo(index + 1);
+    else if (action === "replace") replaceCurrent();
+    else if (action === "replace-all") replaceAll();
     else if (action === "close") handle.close();
   });
 

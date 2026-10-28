@@ -34,6 +34,14 @@ type App struct {
 	pluginHost       *pluginhost.Host
 	pluginBridge     *pluginhost.Bridge
 	fileWatcher      *fileWatcher
+	singleInstance   *SingleInstance
+
+	// externalMu guards the single-instance forwarding buffer. Paths handed to
+	// the running app by a second instance are buffered until the frontend has
+	// registered its listener, then drained via TakeExternalPaths.
+	externalMu      sync.Mutex
+	pendingExternal []string
+	externalReady   bool
 }
 
 type SessionPayload struct {
@@ -371,6 +379,72 @@ func (a *App) ConsumeLaunchPath() string {
 	p := strings.TrimSpace(a.launchPath)
 	a.launchPath = ""
 	return p
+}
+
+// sanitizeExternalPaths normalizes and filters forwarded paths to actual,
+// existing, non-directory files. Anything malformed is dropped so the frontend
+// never opens a bogus path.
+func sanitizeExternalPaths(paths []string) []string {
+	if len(paths) == 0 {
+		return nil
+	}
+	valid := make([]string, 0, len(paths))
+	for _, p := range paths {
+		ap, err := filepath.Abs(strings.TrimSpace(p))
+		if err != nil {
+			continue
+		}
+		info, err := os.Stat(ap)
+		if err != nil || info.IsDir() {
+			continue
+		}
+		valid = append(valid, ap)
+	}
+	return valid
+}
+
+// handleExternalOpen is the callback wired into the single-instance IPC pipe.
+// When a secondary TextMind process is launched with file arguments (e.g. a
+// double-clicked file), the primary forwards those paths here so they open as
+// new tabs. Paths are validated, then either buffered until the frontend is
+// ready (startup) or emitted live once the frontend is listening.
+func (a *App) handleExternalOpen(paths []string) {
+	valid := sanitizeExternalPaths(paths)
+	a.logger.Printf("external-open received: %d raw, %d valid -> %v", len(paths), len(valid), valid)
+	if len(valid) == 0 {
+		return
+	}
+
+	a.externalMu.Lock()
+	if !a.externalReady {
+		// Frontend not ready yet: keep the paths for the startup drain.
+		a.pendingExternal = append(a.pendingExternal, valid...)
+		a.externalMu.Unlock()
+		return
+	}
+	a.externalMu.Unlock()
+
+	if a.ctx == nil {
+		a.logger.Printf("external-open: ctx is nil, cannot emit")
+		return
+	}
+	// Bring the window to the foreground so the user sees the new tab(s)
+	// open, even if the app was minimized or sitting behind other windows.
+	raiseWindow(a.ctx)
+	runtime.EventsEmit(a.ctx, "open-files", valid)
+}
+
+// TakeExternalPaths marks the frontend as ready for live external-open events
+// and returns any paths forwarded while it was still booting. The frontend
+// calls this once, after registering its "open-files" listener, to avoid losing
+// files forwarded during startup.
+func (a *App) TakeExternalPaths() []string {
+	a.externalMu.Lock()
+	defer a.externalMu.Unlock()
+	a.externalReady = true
+	pending := a.pendingExternal
+	a.pendingExternal = nil
+	return pending
 }
 
 func (a *App) SaveTextFile(path, text string) SaveFileResult {

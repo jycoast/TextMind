@@ -101,6 +101,19 @@ export interface SelectionStats {
   byteCount: number;
 }
 
+/**
+ * Block context under the caret, used to show only the relevant Markdown
+ * context-menu actions (table / code block / task list) for the current block.
+ */
+export interface MarkdownBlockContext {
+  inTable: boolean;
+  inCodeBlock: boolean;
+  inListItem: boolean;
+  isTaskItem: boolean;
+  /** The code block's text, populated only when the caret is in a code block. */
+  codeText: string;
+}
+
 export interface EditorAdapter {
   /** Editor implementation id (e.g. "monaco", "milkdown"). */
   id: string;
@@ -164,5 +177,25 @@ export interface EditorAdapter {
    * markdown source so both editors land on the same heading.
    */
   revealNthHeading?: (index: number) => boolean;
+  /**
+   * Return the 0-based index of the heading currently under the caret, or -1
+   * when the caret is not inside any heading. Indexes follow the same order
+   * the outline panel parses (source order of headings), so the panel can map
+   * an editor position to its own parsed items without relying on line
+   * numbers (which front-matter extraction can shift). Only meaningful for
+   * tree-based editors (Milkdown); line-addressable ones omit it and the
+   * panel falls back to `getCursorPosition().line`.
+   */
+  getCursorHeadingIndex?: () => number;
+  /**
+   * Describe the block under the caret (used by Markdown context menus).
+   * Returns null when the editor can't answer (e.g. Monaco/split preview).
+   */
+  getContextBlock?: () => MarkdownBlockContext | null;
+  /**
+   * Run a formatting action (table ops, task toggle, ...) on the current
+   * selection. Same action vocabulary as the formatting toolbar.
+   */
+  runFormatting?: (action: string, payload?: unknown) => boolean;
   dispose: () => void;
 }

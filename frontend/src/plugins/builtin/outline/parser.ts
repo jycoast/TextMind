@@ -28,9 +28,8 @@ function inlineText(token: Token): string {
     .trim();
 }
 
-/** Parse headings with the same CommonMark/GFM rules used by rendered Markdown. */
-export function parseMarkdownOutline(text: string): OutlineItem[] {
-  if (!text) return [];
+/** Full parse via markdown-it — the source of truth (skips code blocks, etc.). */
+function fullParse(text: string): OutlineItem[] {
   const out: OutlineItem[] = [];
   const tokens = getMarkdown().parse(text, {});
   for (let i = 0; i < tokens.length; i += 1) {
@@ -48,5 +47,88 @@ export function parseMarkdownOutline(text: string): OutlineItem[] {
       slug: String(open.meta?.textmindSlug || ""),
     });
   }
+  return out;
+}
+
+interface ScanResult {
+  /** "lineNo:level:text" per candidate heading, joined — the change signature. */
+  signature: string;
+  /** True when the doc has constructs that make a naive scan unreliable. */
+  ambiguous: boolean;
+}
+
+// A cheap line scan that only needs to detect WHEN the heading structure might
+// have changed. It is never used to build the outline — markdown-it stays the
+// source of truth — only to decide whether the previous full parse can be
+// reused. To stay correct it refuses the fast path on ambiguous docs (fences,
+// Setext underlines, HTML blocks), where a `#` line might not be a heading.
+//
+// INVARIANT: `ambiguous` is sticky — once set it is never reset within a
+// scan. Any construct we can't cheaply reason about (fences, Setext
+// underlines, HTML openers, even over-indented lines misread as fences) flips
+// it, and the caller must fall back to the full markdown-it parse. Because it
+// never resets, a doc can only move *toward* reuse after a real re-parse,
+// never away from correctness. Do not "optimize" this away.
+function scanHeadings(text: string): ScanResult {
+  let inFence = false;
+  let fenceChar = "";
+  let fenceLen = 0;
+  let ambiguous = false;
+  const parts: string[] = [];
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (inFence) {
+      const fence = /^\s*(`{3,}|~{3,})/.exec(line);
+      if (fence) {
+        const char = fence[1][0];
+        const len = fence[1].length;
+        if (char === fenceChar && len >= fenceLen) inFence = false;
+      }
+      continue;
+    }
+    // Code-fence opener, Setext underline, or HTML block opener all mean the
+    // fast path can't be trusted.
+    if (/^\s*(`{3,}|~{3,})/.test(line)) {
+      const fence = /^\s*(`{3,}|~{3,})/.exec(line)!;
+      ambiguous = true;
+      inFence = true;
+      fenceChar = fence[1][0];
+      fenceLen = fence[1].length;
+      continue;
+    }
+    if (/^\s{0,3}(=+|-+)\s*$/.test(line)) ambiguous = true;
+    if (/^\s*</.test(line)) ambiguous = true;
+    const heading = /^\s{0,3}(#{1,6})\s+(.+)$/.exec(line);
+    if (heading) {
+      parts.push(`${i + 1}:${heading[1].length}:${heading[2].trim()}`);
+    }
+  }
+  return { signature: parts.join("\n"), ambiguous };
+}
+
+let lastSignature = "";
+let lastItems: OutlineItem[] | null = null;
+
+/** Parse headings with the same CommonMark/GFM rules used by rendered Markdown. */
+export function parseMarkdownOutline(text: string): OutlineItem[] {
+  if (!text) {
+    lastSignature = "";
+    lastItems = null;
+    return [];
+  }
+  const scan = scanHeadings(text);
+  // Fast path: on an unambiguous doc whose heading signature is unchanged,
+  // reuse the last full parse (body-only edits then avoid a full re-parse).
+  if (!scan.ambiguous && lastItems && scan.signature === lastSignature) {
+    return lastItems;
+  }
+  // Cache is updated even for ambiguous docs: markdown-it is always the source
+  // of truth, so lastItems/lastSignature always reflect a real parse. This keeps
+  // reuse correct if the doc later becomes unambiguous with an unchanged
+  // signature (e.g. a fence around non-heading code is removed).
+  const out = fullParse(text);
+  lastSignature = scan.signature;
+  lastItems = out;
   return out;
 }

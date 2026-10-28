@@ -13,6 +13,7 @@ import {
   normalizeViewStateBag,
 } from "@/utils/normalize";
 import { useRecentStore } from "@/stores/recent";
+import { editorRegistry } from "@/plugins/core/EditorRegistry";
 
 function newTabObject(
   title?: string,
@@ -56,6 +57,7 @@ export const useTabsStore = defineStore("tabs", () => {
   const splitTabId = ref<string | null>(null);
   const splitRatio = ref<number>(0.5);
   const adapter = shallowRef<EditorAdapter | null>(null);
+  let adapterTabId: string | null = null;
   const programmaticUpdate = ref<boolean>(false);
 
   const current = computed<Tab | null>(
@@ -98,6 +100,7 @@ export const useTabsStore = defineStore("tabs", () => {
 
   function setAdapter(a: EditorAdapter | null): void {
     adapter.value = a;
+    adapterTabId = null;
     // When a fresh editor adapter attaches, push the current tab's content
     // into it. This handles the case where session restore (or any other
     // tab mutation) happened BEFORE the editor mounted: without this call
@@ -116,14 +119,14 @@ export const useTabsStore = defineStore("tabs", () => {
 
   function persistCurrentText(): void {
     const tab = current.value;
-    if (!tab || !adapter.value) return;
+    if (!tab || !adapter.value || adapterTabId !== tab.id) return;
     tab.text = adapter.value.getValue();
   }
 
   function persistCurrentViewState(): void {
     const tab = current.value;
     const a = adapter.value;
-    if (!tab || !a?.getViewState) return;
+    if (!tab || !a?.getViewState || adapterTabId !== tab.id) return;
     const state = a.getViewState();
     if (state == null) return;
     const bag: ViewStateBag = { ...(tab.viewState || {}) };
@@ -135,6 +138,12 @@ export const useTabsStore = defineStore("tabs", () => {
     const tab = current.value;
     const a = adapter.value;
     if (!tab || !a) return;
+    // The editor host swaps implementations after the selected tab changes.
+    // Until then, the attached adapter still belongs to the previous tab.
+    // Sending Markdown through that adapter can parse a large document twice
+    // and, on the way back, serialize plain text through Milkdown.
+    if (editorRegistry.pickFor(tab)?.id !== a.id) return;
+    adapterTabId = tab.id;
     programmaticUpdate.value = true;
     try {
       a.setValue(tab.text || "");
@@ -152,7 +161,7 @@ export const useTabsStore = defineStore("tabs", () => {
 
   function pullLatestFromEditor(): { changed: boolean; tab: Tab | null } {
     const tab = current.value;
-    if (!tab || !adapter.value) return { changed: false, tab: null };
+    if (!tab || !adapter.value || adapterTabId !== tab.id) return { changed: false, tab: null };
     const latest = adapter.value.getValue();
     const changed = tab.text !== latest;
     tab.text = latest;

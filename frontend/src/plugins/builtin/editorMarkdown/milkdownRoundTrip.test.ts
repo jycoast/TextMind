@@ -32,6 +32,7 @@ describe("Milkdown Markdown round trip", () => {
     ["inline marks and escapes", "Use **bold**, *emphasis*, `a|b`, and \\*literal\\*.\n"],
     ["fenced code language", "```typescript\nconst value = `a|b`;\n```\n"],
     ["inline and block math", "Inline $a^2+b^2$ formula.\n\n$$\n\\frac{1}{2}\n$$\n"],
+    ["GFM footnotes", "A note[^long] plus 中文[^cn].\n\n[^long]: A **long** definition with `code`.\n\n[^cn]: 中文脚注内容。\n"],
   ])("stabilizes supported %s syntax after serialization", async (_name, source) => {
     const once = await roundTrip(source);
     const twice = await roundTrip(once);

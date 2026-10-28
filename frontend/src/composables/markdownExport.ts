@@ -129,11 +129,15 @@ export interface PreparedMarkdownPDF {
   mermaidErrors: number;
 }
 
-export async function prepareMarkdownPDF(
+/**
+ * Render + hydrate a source string into an article whose local images are
+ * inlined as data URLs and whose Mermaid blocks are rendered to inline SVG.
+ * Shared by the PDF and HTML exporters so both are self-contained.
+ */
+async function prepareMarkdownArticle(
   source: string,
-  title: string,
   documentPath: string,
-): Promise<PreparedMarkdownPDF> {
+): Promise<HTMLElement> {
   const article = document.createElement("article");
   article.innerHTML = renderDocumentMarkdown(source);
   if (!documentPath) {
@@ -149,8 +153,14 @@ export async function prepareMarkdownPDF(
     link.removeAttribute("target");
     link.removeAttribute("rel");
   });
+  return article;
+}
+
+function exportStats(article: HTMLElement): {
+  missingLocalImages: number;
+  mermaidErrors: number;
+} {
   return {
-    html: buildMarkdownPDFDocument(title, article.innerHTML),
     missingLocalImages: article.querySelectorAll(
       ".tm-markdown-image--missing",
     ).length,
@@ -158,4 +168,47 @@ export async function prepareMarkdownPDF(
       '.tm-mermaid[data-mermaid-state="error"]',
     ).length,
   };
+}
+
+export async function prepareMarkdownPDF(
+  source: string,
+  title: string,
+  documentPath: string,
+): Promise<PreparedMarkdownPDF> {
+  const article = await prepareMarkdownArticle(source, documentPath);
+  return {
+    html: buildMarkdownPDFDocument(title, article.innerHTML),
+    ...exportStats(article),
+  };
+}
+
+/** A standalone .html file (same content pipeline as the PDF export). */
+export async function prepareMarkdownHTML(
+  source: string,
+  title: string,
+  documentPath: string,
+): Promise<PreparedMarkdownPDF> {
+  const article = await prepareMarkdownArticle(source, documentPath);
+  return {
+    html: buildMarkdownHTMLDocument(title, article.innerHTML),
+    ...exportStats(article),
+  };
+}
+
+export function buildMarkdownHTMLDocument(
+  title: string,
+  bodyHtml: string,
+): string {
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(title || "Markdown")}</title>
+  <style>${printableKatexStyles}\n${markdownPrintStyles}</style>
+</head>
+<body>
+  <article class="tm-markdown-export">${bodyHtml}</article>
+</body>
+</html>`;
 }

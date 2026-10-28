@@ -76,6 +76,7 @@ export const backend = {
     App.ListFolder(path),
 
   consumeLaunchPath: (): Promise<string> => App.ConsumeLaunchPath(),
+  takeExternalPaths: (): Promise<string[]> => App.TakeExternalPaths(),
 
   notify: (title: string, message: string): Promise<void> =>
     App.Notify(title, message),

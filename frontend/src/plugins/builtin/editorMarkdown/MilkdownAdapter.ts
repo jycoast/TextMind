@@ -58,6 +58,7 @@ import {
   trailingParagraphPlugin,
   codeBlockExitKeymap,
 } from "./blockExits";
+import { taskListCheckboxPlugin } from "./taskListCheckbox";
 // Refractor language modules. Kept in sync with the extension table in
 // `frontend/src/composables/useLanguageGuess.ts` so that the languages users
 // can detect / set elsewhere in the app also have WYSIWYG syntax coloring.
@@ -100,7 +101,19 @@ import {
   handleDocumentMarkdownLinkClick,
 } from "@/composables/markdownResources";
 import { createLocalImageView } from "./localImageView";
+import { richHtmlToMarkdown } from "@/composables/markdownRichPaste";
+import { focusModePlugin } from "./focusMode";
+import { slashMenu, slashMenuSpec } from "./slashMenu";
+import { findReplacePlugin } from "./findReplace";
+import {
+  imageSchemaWithWidth,
+  remarkImageWidthPlugin,
+} from "./imageResize";
 import { tabularTextToMarkdown } from "./tabularPaste";
+import {
+  extractFrontMatter,
+  restoreFrontMatter,
+} from "@/composables/markdownFrontMatter";
 
 // Milkdown's Nord theme is a hardcoded dark theme which leaves
 // body text invisible in our light mode. We ship our own minimal stylesheet
@@ -159,6 +172,7 @@ export interface MilkdownAdapterOptions {
   initialTheme: string;
   documentPath?: string;
   onExportPdf?: () => void | Promise<void>;
+  onExportHtml?: () => void | Promise<void>;
 }
 
 interface MilkdownViewState {
@@ -171,7 +185,7 @@ export function createMilkdownAdapter(
   options: MilkdownAdapterOptions,
 ): EditorAdapter {
   ensureStylesInjected();
-  const { host, documentPath = "", onExportPdf } = options;
+  const { host, documentPath = "", onExportPdf, onExportHtml } = options;
 
   // Wrapper div so we can scope styles without colliding with Monaco's host.
   const inner = document.createElement("div");
@@ -188,6 +202,26 @@ export function createMilkdownAdapter(
   });
   inner.appendChild(toolbar.element);
 
+  // YAML front matter (`---`-delimited block at the top of the document) is
+  // kept OUT of the editable Milkdown doc — remark would mangle it (see
+  // markdownFrontMatter.ts). It's captured on load, shown here as a read-only
+  // header above the body, and re-prefixed on save.
+  const frontMatterHeader = document.createElement("pre");
+  frontMatterHeader.className = "tm-md-frontmatter";
+  frontMatterHeader.setAttribute("aria-label", "Front matter（可在源码模式编辑）");
+  frontMatterHeader.hidden = true;
+  inner.appendChild(frontMatterHeader);
+  let frontMatter = "";
+  function renderFrontMatterHeader(): void {
+    if (frontMatter) {
+      frontMatterHeader.textContent = frontMatter;
+      frontMatterHeader.hidden = false;
+    } else {
+      frontMatterHeader.textContent = "";
+      frontMatterHeader.hidden = true;
+    }
+  }
+
   // pendingValue stores writes that arrive before the editor finishes booting,
   // and stays in sync afterward so getValue() before the first user edit is
   // still correct without paying for a ProseMirror serialize.
@@ -195,6 +229,7 @@ export function createMilkdownAdapter(
   let editor: Editor | null = null;
   let booted = false;
   let disposed = false;
+  let seededValue = "";
   let cleanDoc: ProseNode | null = null;
   // Boot starts with onChange suppressed so the initial document insert (which
   // ProseMirror models as a transaction) doesn't propagate up and clobber
@@ -321,7 +356,17 @@ export function createMilkdownAdapter(
             for (let depth = $from.depth; depth > 0; depth -= 1) {
               const node = $from.node(depth);
               if (node.type.name !== "list_item") continue;
-              const checked = node.attrs.checked == null ? false : null;
+              // commonmark task items are three-state: null (plain), false
+              // (`- [ ]`), true (`- [x]`). Cycle all three so the toolbar can
+              // both mark an item done and un-mark it, instead of only
+              // toggling plain <-> `[ ]` (which previously made `[x]`
+              // unreachable and silently flattened already-checked items).
+              const checked =
+                node.attrs.checked == null
+                  ? false
+                  : node.attrs.checked === false
+                    ? true
+                    : null;
               view.dispatch(
                 view.state.tr.setNodeMarkup($from.before(depth), undefined, {
                   ...node.attrs,
@@ -332,8 +377,16 @@ export function createMilkdownAdapter(
             }
           });
           break;
+        case "math":
+          // The math plugin provides schema + input rules but no insert
+          // command, so go through the parser: `$\cdots$` becomes a real
+          // math_inline node rendering as a visible ellipsis placeholder the
+          // user replaces with their formula.
+          insertMarkdownAtSelection("$\\cdots$");
+          break;
         case "hr": invoke(insertHrCommand); break;
         case "export-pdf": void onExportPdf?.(); break;
+        case "export-html": void onExportHtml?.(); break;
         default: invoke(createCodeBlockCommand); break;
       }
       getView().focus();
@@ -376,6 +429,36 @@ export function createMilkdownAdapter(
       ev.stopPropagation();
       return;
     }
+    // Paste screenshots / copied images as self-contained data-URL images, the
+    // same way dropping an image file does (no backend write needed).
+    const pastedImages = Array.from(ev.clipboardData?.files || []).filter(
+      (file) => file.type.startsWith("image/"),
+    );
+    if (pastedImages.length > 0) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      for (const file of pastedImages) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (disposed || typeof reader.result !== "string") return;
+          insertMarkdownAtSelection(`![${file.name}](${reader.result})`);
+        };
+        reader.readAsDataURL(file);
+      }
+      return;
+    }
+    // Pasted rich text (e.g. from a web page) is converted to clean Markdown
+    // instead of letting Milkdown insert loose HTML. Plain-text-only pastes
+    // (already handled above) and image/table pastes are left untouched.
+    const richHtml = ev.clipboardData?.getData("text/html") || "";
+    if (richHtml) {
+      const markdown = richHtmlToMarkdown(richHtml);
+      if (markdown && insertMarkdownAtSelection(markdown)) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        return;
+      }
+    }
     if (pasteHandlers.length === 0) return;
     for (const h of pasteHandlers) {
       const consumed = h(ev) === true || ev.defaultPrevented;
@@ -387,6 +470,34 @@ export function createMilkdownAdapter(
     }
   };
   inner.addEventListener("paste", onPasteListener, true);
+
+  // Dragging image files into the editor inserts them at the current selection
+  // as data-URL images (self-contained — no backend write needed). Other drag
+  // payloads (e.g. the app's own "open file as tab" drop) are left alone, but
+  // dragover must be prevented so the drop doesn't get swallowed as a text
+  // paste. Multiple images are inserted in order.
+  const onDragOver = (ev: DragEvent) => {
+    if (Array.from(ev.dataTransfer?.types || []).includes("Files")) {
+      ev.preventDefault();
+    }
+  };
+  const onDrop = (ev: DragEvent) => {
+    const files = Array.from(ev.dataTransfer?.files || []);
+    const images = files.filter((f) => f.type.startsWith("image/"));
+    if (images.length === 0) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    for (const file of images) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (disposed || typeof reader.result !== "string") return;
+        insertMarkdownAtSelection(`![${file.name}](${reader.result})`);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  inner.addEventListener("dragover", onDragOver);
+  inner.addEventListener("drop", onDrop);
 
   function insertMarkdownAtSelection(text: string): boolean {
     if (!editor || !booted || !text) return false;
@@ -428,7 +539,8 @@ export function createMilkdownAdapter(
         // pendingValue is captured by Milkdown at config-evaluation time. If
         // we lose the race against an early setValue() the second replaceAll
         // below still recovers, but seeding it here avoids an empty-flash.
-        ctx.set(defaultValueCtx, pendingValue);
+        seededValue = pendingValue;
+        ctx.set(defaultValueCtx, seededValue);
         // KaTeX options: don't throw on malformed input (would otherwise
         // tear down the WYSIWYG render whenever the user is mid-typing
         // a formula like `$\frac`).
@@ -472,19 +584,29 @@ export function createMilkdownAdapter(
         });
         ctx.get(listenerCtx)
           .markdownUpdated((_ctx, md, _prev) => {
-            if (suppressOnChange) return;
+            if (disposed || suppressOnChange) return;
             if (!changeGuard.shouldNotify(md)) return;
             pendingValue = sanitizeSerializedMarkdown(md);
             for (const h of changeHandlers) h();
           })
-          .selectionUpdated((_ctx, sel) => {
+          .selectionUpdated((_ctx, _sel) => {
             emitCursor();
-            emitSelectionsCount(sel.empty ? 1 : 1);
+            // ProseMirror only ever holds a single selection (a caret or a
+            // range) — it has no multi-cursor support like Monaco's column
+            // mode. The count is therefore always 1; EditorHost keys its
+            // column-mode collapse off counts > 1, which can never occur here.
+            emitSelectionsCount(1);
             if (editor && booted) toolbar.update(getView().state);
           });
       })
       .use(commonmark)
       .use(gfm)
+      // Add a `width` attr to the image node (Typora-style persisted resize) and
+      // re-parse `<img style="width:Npx">` HTML back into an editable image
+      // node. Must run after commonmark/gfm so it overrides the built-in image
+      // schema and sees the final remark parser.
+      .use(imageSchemaWithWidth)
+      .use(remarkImageWidthPlugin)
       .use(history)
       .use(listener)
       // math must be registered AFTER commonmark/gfm so its remark plugin and
@@ -506,7 +628,19 @@ export function createMilkdownAdapter(
       // paragraph rule keeps an empty paragraph at the end of the doc;
       // the keymap also lets Mod-/Shift-Enter pop out of a code block.
       .use(trailingParagraphPlugin)
-      .use(codeBlockExitKeymap);
+      .use(codeBlockExitKeymap)
+      // Clicking the rendered task checkbox toggles the doc's `checked` attr
+      // (see taskListCheckbox.ts) instead of only the native <input>.
+      .use(taskListCheckboxPlugin)
+      // Typewriter / focus modes (dim other blocks, keep cursor centered).
+      .use(focusModePlugin())
+      // "/" command menu — typing / in an empty block shows insert commands.
+      .use(slashMenu)
+      .config((ctx) => {
+        ctx.set(slashMenu.key, slashMenuSpec(ctx));
+      })
+      // Find & replace floating bar (Ctrl/Cmd-F), with live match highlights.
+      .use(findReplacePlugin());
 
     if (documentPath) e.use(createLocalImageView(documentPath));
 
@@ -525,7 +659,7 @@ export function createMilkdownAdapter(
       // updated pendingValue and never reached the editor. Re-apply now so
       // the user sees the file content even when the config callback ran
       // with an empty pendingValue.
-      if (pendingValue) {
+      if (pendingValue !== seededValue) {
         try {
           e.action(replaceAll(pendingValue));
         } catch (err) {
@@ -542,14 +676,20 @@ export function createMilkdownAdapter(
   })();
 
   function readMarkdown(): string {
-    if (!editor) return pendingValue;
-    try {
-      if (cleanDoc && getView().state.doc.eq(cleanDoc)) return pendingValue;
-      return sanitizeSerializedMarkdown(editor.action(getMarkdown()));
-    } catch (err) {
-      console.warn("[milkdown] getMarkdown:", err);
-      return pendingValue;
-    }
+    // `pendingValue` / `getMarkdown()` describe only the editable body; the
+    // front matter block is spliced back on for everything that reads the full
+    // document (save, diff, mode switch).
+    const body = (() => {
+      if (!editor) return pendingValue;
+      try {
+        if (cleanDoc && getView().state.doc.eq(cleanDoc)) return pendingValue;
+        return sanitizeSerializedMarkdown(editor.action(getMarkdown()));
+      } catch (err) {
+        console.warn("[milkdown] getMarkdown:", err);
+        return pendingValue;
+      }
+    })();
+    return restoreFrontMatter(frontMatter, body);
   }
 
   function writeMarkdown(md: string) {
@@ -646,7 +786,15 @@ export function createMilkdownAdapter(
     },
 
     getValue: () => readMarkdown(),
-    setValue: (value: string) => writeMarkdown(value || ""),
+    setValue: (value: string) => {
+      // Split off a leading YAML front matter block and keep it out of the
+      // editable doc (see markdownFrontMatter.ts). Re-fed on every setValue so
+      // edits made to the front matter in source mode are picked up too.
+      const { frontMatter: fm, body } = extractFrontMatter(value || "");
+      frontMatter = fm;
+      renderFrontMatterHeader();
+      writeMarkdown(body);
+    },
 
     getSelectionText: () => {
       return (
@@ -699,6 +847,40 @@ export function createMilkdownAdapter(
       return result || { line: 1, column: 1 };
     },
 
+    getCursorHeadingIndex: () => {
+      const result = withView((view) => {
+        const $pos = view.state.selection.$from;
+        // Walk up from the caret to the nearest heading block.
+        let headingDepth = -1;
+        for (let d = $pos.depth; d > 0; d--) {
+          if ($pos.node(d).type.name === "heading") {
+            headingDepth = d;
+            break;
+          }
+        }
+        if (headingDepth < 0) return -1;
+        const targetPos = $pos.before(headingDepth);
+        // Count headings that appear before this one in the doc, so the result
+        // matches the outline panel's source-order indexes.
+        let index = -1;
+        let count = 0;
+        view.state.doc.descendants((node, pos) => {
+          if (node.type.name !== "heading") return true;
+          if (pos < targetPos) {
+            count += 1;
+            return true;
+          }
+          if (pos === targetPos) {
+            index = count;
+            return false;
+          }
+          return true;
+        });
+        return index;
+      });
+      return result ?? -1;
+    },
+
     getSelectionStats: (): SelectionStats => {
       const fallback: SelectionStats = {
         hasSelection: false,
@@ -729,6 +911,34 @@ export function createMilkdownAdapter(
     focus: () => {
       withView((view) => view.focus());
     },
+
+    getContextBlock: () => {
+      return withView((view) => {
+        const { $from } = view.state.selection;
+        const ctx = {
+          inTable: false,
+          inCodeBlock: false,
+          inListItem: false,
+          isTaskItem: false,
+          codeText: "",
+        };
+        for (let depth = $from.depth; depth >= 0; depth -= 1) {
+          const node = $from.node(depth);
+          if (node.type.name === "table") ctx.inTable = true;
+          else if (node.type.name === "code_block") {
+            ctx.inCodeBlock = true;
+            ctx.codeText = node.textContent;
+          } else if (node.type.name === "list_item") {
+            ctx.inListItem = true;
+            if (node.attrs.checked != null) ctx.isTaskItem = true;
+          }
+        }
+        return ctx;
+      });
+    },
+
+    runFormatting: (action, payload) =>
+      runFormattingCommand(action as FormattingAction, payload),
 
     triggerFind: () => {
       if (!booted) return false;
@@ -795,6 +1005,8 @@ export function createMilkdownAdapter(
       inner.removeEventListener("contextmenu", onContextMenuListener);
       inner.removeEventListener("click", onMarkdownClick);
       inner.removeEventListener("paste", onPasteListener, true);
+      inner.removeEventListener("dragover", onDragOver);
+      inner.removeEventListener("drop", onDrop);
       if (findWidget) {
         findWidget.destroy();
         findWidget = null;
@@ -803,9 +1015,15 @@ export function createMilkdownAdapter(
       const maybe = editor;
       editor = null;
       if (maybe) {
-        maybe.destroy().catch(() => {
-          /* ignore */
-        });
+        // Milkdown's listener debounces Markdown serialization for 200 ms.
+        // Destroying its context while that timer is pending makes the
+        // serializer read a removed editorView and throw after a tab switch.
+        // Keep the detached editor alive until the pending callback has run.
+        setTimeout(() => {
+          void maybe.destroy().catch(() => {
+            /* ignore */
+          });
+        }, 250);
       }
       try {
         host.removeChild(inner);

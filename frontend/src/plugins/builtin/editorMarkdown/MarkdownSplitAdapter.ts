@@ -5,6 +5,7 @@ import {
   handleDocumentMarkdownLinkClick,
   hydrateLocalMarkdownImages,
 } from "@/composables/markdownResources";
+import { createMarkdownLightbox } from "@/composables/useMarkdownLightbox";
 import type { EditorAdapter } from "@/types";
 
 export interface MarkdownSplitAdapterOptions {
@@ -171,10 +172,19 @@ export function createMarkdownSplitAdapter(
   }
 
   source.onChange(schedulePreview);
+  const lightbox = createMarkdownLightbox();
   preview.addEventListener("click", (event) => {
-    handleDocumentMarkdownLinkClick(event, preview, documentPath);
+    if (handleDocumentMarkdownLinkClick(event, preview, documentPath)) return;
     const target = event.target as HTMLElement | null;
-    if (!target || target.closest("a")) return;
+    if (!target) return;
+    const image = target.closest<HTMLImageElement>("img");
+    if (image && !image.closest("a")) {
+      event.preventDefault();
+      event.stopPropagation();
+      lightbox.open(image.currentSrc || image.src, image.alt);
+      return;
+    }
+    if (target.closest("a")) return;
     const block = target.closest<HTMLElement>("[data-source-line]");
     const line = Number(block?.dataset.sourceLine || 0);
     if (line > 0) source.revealLine?.(line);
@@ -224,12 +234,17 @@ export function createMarkdownSplitAdapter(
     onPaste: source.onPaste,
     insertText: source.insertText,
     revealLine: source.revealLine,
+    // Markdown block ops (table/code/task) are WYSIWYG-only; the split view's
+    // source pane is plain Monaco with no block semantics to act on.
+    getContextBlock: () => null,
+    runFormatting: () => false,
     dispose() {
       disposed = true;
       renderGeneration += 1;
       if (previewTimer) clearTimeout(previewTimer);
       if (layoutFrame !== null) cancelAnimationFrame(layoutFrame);
       stopResize();
+      lightbox.close();
       source.dispose();
       root.remove();
     },

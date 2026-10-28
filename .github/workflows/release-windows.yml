@@ -56,7 +56,7 @@ jobs:
       - name: Install Wails CLI
         shell: pwsh
         run: |
-          go install github.com/wailsapp/wails/v2/cmd/wails@v2.11.0
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
           "$(go env GOPATH)\bin" | Out-File -FilePath $Env:GITHUB_PATH -Append -Encoding utf8
 
       - name: Wails doctor
